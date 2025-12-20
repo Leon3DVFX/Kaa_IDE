@@ -18,7 +18,7 @@ A Qt-based (PySide6) IDE for Python scripting in Houdini, Maya, and 3ds Max.
 
 ## Instalation
 1. **Before installation**, download and install the main font [JetBrains Mono](https://www.jetbrains.com/lp/mono/).
-2. Check out the video ["Installation Procedure"]().
+2. Check out the video ["Installation Procedure"](https://youtu.be/msa-EqxcmOQ).
 3. Using the video, create short scripts to run in your editors.
 
 ## Status
