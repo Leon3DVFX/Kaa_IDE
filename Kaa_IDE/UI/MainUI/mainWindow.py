@@ -863,4 +863,3 @@ if __name__ == '__main__':
     win = MainButton()
     win.show()
     sys.exit(app.exec())
-
