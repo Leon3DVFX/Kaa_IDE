@@ -17,7 +17,7 @@ A Qt-based (PySide6) IDE for Python scripting in Houdini, Maya, and 3ds Max.
  - 3dsMax 2025+
 
 ## Status
-v0.10
+**v0.10**
 🚧 Work in progress (early development)
 
 ## License
