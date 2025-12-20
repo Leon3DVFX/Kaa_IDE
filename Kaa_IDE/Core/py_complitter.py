@@ -1,0 +1,146 @@
+from PySide6 import QtWidgets, QtCore, QtGui
+from Kaa_IDE.Core.loaders import jsonLoader, iconLoader
+
+
+class ItemModel(QtGui.QStandardItemModel):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.elements = jsonLoader('python_keyword.json')
+        self.setColumnCount(2)
+
+        self.k_icon = iconLoader(r'complitter_icons\keywords_icon.png')
+        self.append_to_tab("keywords", self.k_icon)
+
+        self.b_icon = iconLoader(r'complitter_icons\builtins_icon.png')
+        self.append_to_tab("builtins", self.b_icon)
+
+        self.mod_icon = iconLoader(r'complitter_icons\std_mod_icon.png')
+        self.append_to_tab("modules", self.mod_icon)
+
+        self.magic_icon = iconLoader(r'complitter_icons\magic_icon.png')
+        self.append_to_tab("magic", self.magic_icon)
+
+    def append_to_tab(self, j_type, icon):
+        w_list = self.elements.get(j_type, [])
+        COLORS = {
+            "keywords": "#cb8964",
+            "builtins": "#a7a7e8",
+            "modules": "#e0d57b",
+            "magic": "#e03792"
+        }
+        for e in w_list:
+            elem1 = QtGui.QStandardItem()
+            elem1.setText(e)
+            elem1.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignVCenter)
+            elem1.setIcon(icon)
+            elem1.setForeground(QtGui.QColor(COLORS[j_type]))
+
+            elem2 = QtGui.QStandardItem()
+            elem2.setText(j_type)
+            elem2.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
+
+            self.appendRow([elem1, elem2])
+
+class CompleterTableView(QtWidgets.QTableView):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        # Запуск прокси модели
+        self.base_model = ItemModel()
+        self.proxy_model = QtCore.QSortFilterProxyModel(self)
+        self.proxy_model.setSourceModel(self.base_model)
+        self.proxy_model.setFilterCaseSensitivity(QtCore.Qt.CaseSensitivity.CaseInsensitive)
+        self.setModel(self.proxy_model)
+        # ВАЖНО! Popup не захватывает фокус ввода
+        self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        # Общий шрифт
+        self.setFont(QtGui.QFont('JetBrains Mono', 10))
+        # popup
+        self.setWindowFlags(QtCore.Qt.WindowType.Tool |
+                            QtCore.Qt.WindowType.FramelessWindowHint)
+        self.setMinimumWidth(380)
+        self.setMaximumHeight(240)
+        self.setItemDelegate(CombinedDelegate(self))
+        #Авто-ширина столбцов
+        self.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.ResizeMode.Stretch)
+        self.setEditTriggers(QtWidgets.QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.setShowGrid(False)
+        self.setColumnHidden(1, True)
+
+        self.horizontalHeader().hide()
+        self.verticalHeader().hide()
+        self.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectionBehavior.SelectRows)
+        self.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.SingleSelection)
+        self.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
+        self.sortByColumn(0, QtCore.Qt.SortOrder.AscendingOrder)
+        self.selectRow(0)
+
+    def filter_proxy(self, text):
+        self.proxy_model.setFilterFixedString(text)
+        self.proxy_model.setDynamicSortFilter(True)
+
+        rows = self.proxy_model.rowCount()
+        if rows == 0:
+            self.setFixedHeight(0)
+            self.hide()
+            return
+        else:
+            row_height = self.rowHeight(0)
+            height = min(rows * row_height + 2 * self.frameWidth(), 240)
+            self.setFixedHeight(height)
+            self.selectRow(0)
+
+    def select_next(self):
+        rows = self.proxy_model.rowCount()
+        current_row = self.currentIndex().row()
+
+        new_row = current_row + 1
+        if new_row >= rows:
+            new_row = 0
+
+        self.selectRow(new_row)
+        self.scrollTo(self.model().index(new_row,0),
+                      QtWidgets.QAbstractItemView.ScrollHint.PositionAtCenter)
+
+    def select_previous(self):
+        rows = self.proxy_model.rowCount()
+        current_row = self.currentIndex().row()
+
+        new_row = current_row - 1
+        if new_row < 0:
+            new_row = rows - 1
+
+        self.selectRow(new_row)
+        self.scrollTo(self.model().index(new_row, 0),
+                      QtWidgets.QAbstractItemView.ScrollHint.PositionAtCenter)
+
+
+
+class CombinedDelegate(QtWidgets.QStyledItemDelegate):
+    def paint(self, painter, option, index):
+        if index.column() == 0:
+            super().paint(painter, option, index)
+
+            # Берём данные из второй ячейки
+            model = index.model()
+            tag_index = model.index(index.row(), 1)
+            tag_text = model.data(tag_index)
+            align_flag = QtCore.Qt.AlignmentFlag.AlignVCenter | QtCore.Qt.AlignmentFlag.AlignRight
+            # Рисуем справа "keywords", "builtins", ...
+            rect = option.rect.adjusted(0, 0, -12, 0)
+            painter.save()
+            painter.setPen(QtGui.QColor(150, 150, 150))
+            painter.drawText(rect, align_flag, '"' + tag_text + '"')
+            painter.restore()
+        else:
+            # вторую колонку делаем невидимой
+            return
+
+
+
+if __name__ == '__main__':
+    import sys
+
+    app = QtWidgets.QApplication(sys.argv)
+    win = CompleterTableView()
+    win.show()
+    sys.exit(app.exec())
