@@ -7,7 +7,7 @@ A Qt-based (PySide6) IDE for Python scripting in Houdini, Maya, and 3ds Max.
 - Designed for technical artists and developers
 
 ## Tech stack
-- Python 3
+- Python 3.x
 - PySide6 (Qt)
 - Houdini / Maya / 3ds Max APIs
 
