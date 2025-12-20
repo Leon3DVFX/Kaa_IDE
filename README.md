@@ -11,7 +11,7 @@ A Qt-based (PySide6) IDE for Python scripting in Houdini, Maya, and 3ds Max.
 - PySide6 (Qt)
 - Houdini / Maya / 3ds Max APIs
 
-## DCCs
+## Supported DCCs
  - Houdini 21+
  - Maya 2025+
  - 3dsMax 2025+
