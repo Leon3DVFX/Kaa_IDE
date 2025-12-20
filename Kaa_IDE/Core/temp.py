@@ -131,7 +131,7 @@ class TempSystem:
         # Парсинг и восстановление блоков
         it_wins = self.pattern_block.globalMatch(self.last_loaded)
         it_text = self.pattern_text.globalMatch(self.last_loaded)
-        while it_wins.hasNext():
+        while it_wins.hasNext() and it_text.hasNext():
             p_match = it_wins.next()
             t_match = it_text.next()
             index = int(p_match.captured(1))
