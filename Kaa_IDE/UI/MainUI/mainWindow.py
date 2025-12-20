@@ -726,7 +726,7 @@ class MainWindow(QtWidgets.QWidget):
         #Упаковка редактора, логера и браузера в Splitter
         self.editor_main = Editor()
         self.editor = self.editor_main.getEditor()  #Доступ к объ через обертку
-        self.editor.setPlaceholderText('Введите Python-код...')
+        self.editor.setPlaceholderText('Enter Python code (Ctrl+Enter to run)')
 
         self.logout_main = Logout()
         self.logout = self.logout_main.getLogout()
@@ -863,3 +863,4 @@ if __name__ == '__main__':
     win = MainButton()
     win.show()
     sys.exit(app.exec())
+
