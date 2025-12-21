@@ -45,7 +45,7 @@ class TempSystem:
 
         # Пооконный парсер (регулярка)
         self.pattern_block = QtCore.QRegularExpression(
-            r'<index> = (\d+)\s*<win_name> = (\S*)\s*<cursor_position> = (\d+)\s*<text_start>\s(.+?\s*?\S)\s<text_end>',
+            r'<index> = (\d+)\s*<win_name> = (\S*)\s*<cursor_position> = (\d+)\s*',
             QtCore.QRegularExpression.PatternOption.DotMatchesEverythingOption
         )
         self.pattern_text = QtCore.QRegularExpression(
