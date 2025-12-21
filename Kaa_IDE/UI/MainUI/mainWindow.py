@@ -57,11 +57,11 @@ class MainButton(QtWidgets.QWidget):
         self.x_button.show()
         self.x_button.clicked.connect(self.close)
         #Кнопка HELP
-        self.help_button = XButton(self, normal='help_normal.png',
-                                   hovered='help_hovered.png',
-                                   activate='help_activate.png')
-        self.help_button.move(self.pos() + QtCore.QPoint(51, 33))
-        self.help_button.show()
+        self.save_button = XButton(self, normal='save_normal.png',
+                                   hovered='save_hovered.png',
+                                   activate='save_activate.png')
+        self.save_button.move(self.pos() + QtCore.QPoint(51, 33))
+        self.save_button.show()
         #Обработка сигналов
         self._showing = False
         # self.mainWindow.closeSignal.connect(self.toggle)
@@ -256,6 +256,7 @@ class MDIArea(QtWidgets.QMdiArea):
         self.temp.load_temp_file(self)
         self.adjustSize()
     # Пересчет прозрачности от слайдера при активации подокна(+создание нового)
+    @QtCore.Slot(QtWidgets.QMdiSubWindow)
     def opacity_recalc(self,subwindow):
         if subwindow:
             editor = subwindow.widget().editor
@@ -267,7 +268,7 @@ class MDIArea(QtWidgets.QMdiArea):
             editor.update()
             log.update()
 
-    @QtCore.Slot()
+    @QtCore.Slot(QtWidgets.QMdiSubWindow)
     def on_subwindow_activated(self, subwindow):
         if getattr(self, '_ignore_activation', False):
             return
@@ -800,27 +801,27 @@ class MainWindow(QtWidgets.QWidget):
 
 
 class XButton(QtWidgets.QPushButton):
-    def __init__(self, parent=None, normal=None, hovered=None, activate=None):
+    def __init__(self, parent=None, normal=None, hovered=None, activate=None, size = 32):
         super().__init__(parent)
         self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground, True)
 
         self.setWindowFlags(QtCore.Qt.WindowType.WindowStaysOnTopHint |
                             QtCore.Qt.WindowType.FramelessWindowHint)
-        self.setFixedSize(32, 32)
+        self.setFixedSize(size, size)
         self.state = 'normal'
         #Варианты отрисовки
         self.pixmapOut = pixmapLoader(normal).scaled(
-            32, 32,
+            self.width(), self.height(),
             QtCore.Qt.AspectRatioMode.KeepAspectRatio,
             QtCore.Qt.TransformationMode.SmoothTransformation
         )
         self.pixmapIn = pixmapLoader(hovered).scaled(
-            32, 32,
+            self.width(), self.width(),
             QtCore.Qt.AspectRatioMode.KeepAspectRatio,
             QtCore.Qt.TransformationMode.SmoothTransformation
         )
         self.pixmapAct = pixmapLoader(activate).scaled(
-            32, 32,
+            self.width(), self.width(),
             QtCore.Qt.AspectRatioMode.KeepAspectRatio,
             QtCore.Qt.TransformationMode.SmoothTransformation
         )
