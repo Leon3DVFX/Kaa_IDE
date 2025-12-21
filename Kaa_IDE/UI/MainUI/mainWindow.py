@@ -198,6 +198,7 @@ class KaaMDIWindow(QtWidgets.QMainWindow):
 
     def create_opacity_slider(self):
         slider = QtWidgets.QSlider(QtCore.Qt.Orientation.Vertical, self)
+        slider.setObjectName('op_slider')
         slider.setRange(150, 255)
         slider.setValue(255)
         slider.valueChanged.connect(self.opacity_correct)
@@ -248,12 +249,23 @@ class MDIArea(QtWidgets.QMdiArea):
         #Инициализация таб-бара
         self.refresh_tabbar()
         self.subWindowActivated.connect(self.on_subwindow_activated)
+        self.subWindowActivated.connect(self.opacity_recalc)
         self.subWindowActivated.connect(self.update)
         #Система сохранения - загрузки
         self.temp = TempSystem(self)
         self.temp.load_temp_file(self)
         self.adjustSize()
-
+    # Пересчет прозрачности от слайдера при активации подокна(+создание нового)
+    def opacity_recalc(self,subwindow):
+        if subwindow:
+            editor = subwindow.widget().editor
+            log = subwindow.widget().logout
+            slider = self.parent().findChild(QtWidgets.QSlider, 'op_slider')
+            if slider:
+                editor.alpha = slider.value()
+                log.alpha = slider.value()
+            editor.update()
+            log.update()
 
     @QtCore.Slot()
     def on_subwindow_activated(self, subwindow):
