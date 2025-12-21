@@ -56,12 +56,17 @@ class MainButton(QtWidgets.QWidget):
         self.x_button.move(self.pos() + QtCore.QPoint(51, 0))
         self.x_button.show()
         self.x_button.clicked.connect(self.close)
-        #Кнопка HELP
+        #Кнопка запуска виджета сохранения-загрузки
         self.save_button = XButton(self, normal='save_normal.png',
                                    hovered='save_hovered.png',
                                    activate='save_activate.png')
         self.save_button.move(self.pos() + QtCore.QPoint(51, 33))
         self.save_button.show()
+        self.save_button.clicked.connect(self.save_widget_action)
+
+        self.save_widget = SaveLoadWidget(self)
+        self.save_widget.hide()
+
         #Обработка сигналов
         self._showing = False
         # self.mainWindow.closeSignal.connect(self.toggle)
@@ -69,6 +74,15 @@ class MainButton(QtWidgets.QWidget):
         temp = self.mainWindow.centralWidget().temp
         self.move(temp.x, temp.y)
         self.mainWindow.resize(temp.width, temp.height)
+
+    # Обработчик для вывода виджета сохр-загрузки
+    @QtCore.Slot()
+    def save_widget_action(self):
+        if self.save_widget.isHidden():
+            self.save_widget.move(self.pos() + QtCore.QPoint(85,0))
+            self.save_widget.show()
+        else:
+            self.save_widget.hide()
 
     # Обработчик с защитой
     @QtCore.Slot()
@@ -88,6 +102,7 @@ class MainButton(QtWidgets.QWidget):
 
     #Реализация свободного перетаскивания за кнопку
     def mousePressEvent(self, e):
+        self.save_widget.hide()
         if e.button() == QtCore.Qt.MouseButton.LeftButton:
             self.clickTimer.start()
             self._old_pos = e.globalPosition().toPoint()
@@ -858,6 +873,54 @@ class XButton(QtWidgets.QPushButton):
             self.state = 'hovered' if self.underMouse() else 'normal'
             self.update()
         super().mouseReleaseEvent(e)
+
+class SaveLoadWidget(QtWidgets.QWidget):
+    def __init__(self,parent = None):
+        super().__init__(parent)
+        self.setWindowFlags(QtCore.Qt.WindowType.FramelessWindowHint|
+                            QtCore.Qt.WindowType.Tool)
+        self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.setFixedSize(320,65)
+        self.frame = pixmapLoader('save_rect_frame.png')
+        self.box = QtWidgets.QHBoxLayout(self)
+
+        self.btn_save_py = XButton(normal=r'save_load_widget_buttons\save_py_normal.png',
+                              hovered=r'save_load_widget_buttons\save_py_hovered.png',
+                              activate=r'save_load_widget_buttons\save_py_activate.png',
+                              size=46)
+        self.btn_save_py.setToolTip('Save Python File\nfrom current tab')
+        self.btn_save_k = XButton(normal=r'save_load_widget_buttons\save_k_normal.png',
+                              hovered=r'save_load_widget_buttons\save_k_hovered.png',
+                              activate=r'save_load_widget_buttons\save_k_activate.png',
+                              size=46)
+        self.btn_save_k.setToolTip('Save Kaa File')
+        self.btn_load_py = XButton(normal=r'save_load_widget_buttons\load_py_normal.png',
+                              hovered=r'save_load_widget_buttons\load_py_hovered.png',
+                              activate=r'save_load_widget_buttons\load_py_activate.png',
+                              size=46)
+        self.btn_load_py.setToolTip('Load Python File\nto current tab')
+        self.btn_load_pyplus = XButton(normal=r'save_load_widget_buttons\load_pyplus_normal.png',
+                              hovered=r'save_load_widget_buttons\load_pyplus_hovered.png',
+                              activate=r'save_load_widget_buttons\load_pyplus_activate.png',
+                              size=46)
+        self.btn_load_pyplus.setToolTip('Load Python File\nto new tab')
+        self.btn_load_k = XButton(normal=r'save_load_widget_buttons\load_k_normal.png',
+                              hovered=r'save_load_widget_buttons\load_k_hovered.png',
+                              activate=r'save_load_widget_buttons\load_k_activate.png',
+                              size=46)
+        self.btn_load_k.setToolTip('Load Kaa File')
+
+        self.box.addWidget(self.btn_save_py, alignment=QtCore.Qt.AlignmentFlag.AlignVCenter)
+        self.box.addWidget(self.btn_save_k, alignment=QtCore.Qt.AlignmentFlag.AlignVCenter)
+        self.box.addWidget(self.btn_load_py, alignment=QtCore.Qt.AlignmentFlag.AlignVCenter)
+        self.box.addWidget(self.btn_load_pyplus, alignment=QtCore.Qt.AlignmentFlag.AlignVCenter)
+        self.box.addWidget(self.btn_load_k, alignment=QtCore.Qt.AlignmentFlag.AlignVCenter)
+
+
+    def paintEvent(self, event):
+        painter = QtGui.QPainter(self)
+        painter.drawPixmap(QtCore.QPoint(0,0),self.frame)
+
 
 
 #Оконный сплиттер
