@@ -63,7 +63,7 @@ class MainButton(QtWidgets.QWidget):
         self.save_button.move(self.pos() + QtCore.QPoint(51, 33))
         self.save_button.show()
         self.save_button.clicked.connect(self.save_widget_action)
-
+        # Виджет с панелью сохранения
         self.save_widget = SaveLoadWidget(self)
         self.save_widget.hide()
 
@@ -79,7 +79,7 @@ class MainButton(QtWidgets.QWidget):
     @QtCore.Slot()
     def save_widget_action(self):
         if self.save_widget.isHidden():
-            self.save_widget.move(self.pos() + QtCore.QPoint(85,0))
+            self.save_widget.move(self.pos() + QtCore.QPoint(85, 0))
             self.save_widget.show()
         else:
             self.save_widget.hide()
@@ -158,7 +158,10 @@ class MainButton(QtWidgets.QWidget):
             mdi_area = self.mainWindow.findChild(QtWidgets.QMdiArea)
             mdi_area.temp.save_temp_file(mdi_area)
             self.x_button.state = 'normal'
+            self.state = 'hide'
             self.mainWindow.close()
+        self.save_widget.close()
+        self.close()
         event.accept()
 
     #Анимация прозрачности при входе - выходе курсора
@@ -219,7 +222,7 @@ class KaaMDIWindow(QtWidgets.QMainWindow):
         slider.valueChanged.connect(self.opacity_correct)
         return slider
 
-    def opacity_correct(self,val):
+    def opacity_correct(self, val):
         subwindows = self.mdi_central.subWindowList()
         for subwindow in subwindows:
             subwindow.widget().editor.alpha = val
@@ -270,9 +273,10 @@ class MDIArea(QtWidgets.QMdiArea):
         self.temp = TempSystem(self)
         self.temp.load_temp_file(self)
         self.adjustSize()
+
     # Пересчет прозрачности от слайдера при активации подокна(+создание нового)
     @QtCore.Slot(QtWidgets.QMdiSubWindow)
-    def opacity_recalc(self,subwindow):
+    def opacity_recalc(self, subwindow):
         if subwindow:
             editor = subwindow.widget().editor
             log = subwindow.widget().logout
@@ -715,7 +719,7 @@ class MDISubWindow(QtWidgets.QMdiSubWindow):
 
             # self.setGeometry(new_geometry)
             main_window = self.window()
-            tb = main_window.findChild(QtWidgets.QToolBar,'opacity_tool')
+            tb = main_window.findChild(QtWidgets.QToolBar, 'opacity_tool')
             tb_w = tb.width()
             main_window.resize(
                 self._start_geometry.width() + tb_w,
@@ -816,7 +820,7 @@ class MainWindow(QtWidgets.QWidget):
 
 
 class XButton(QtWidgets.QPushButton):
-    def __init__(self, parent=None, normal=None, hovered=None, activate=None, size = 32):
+    def __init__(self, parent=None, normal=None, hovered=None, activate=None, size=32):
         super().__init__(parent)
         self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground, True)
 
@@ -874,40 +878,41 @@ class XButton(QtWidgets.QPushButton):
             self.update()
         super().mouseReleaseEvent(e)
 
+
 class SaveLoadWidget(QtWidgets.QWidget):
-    def __init__(self,parent = None):
+    def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowFlags(QtCore.Qt.WindowType.FramelessWindowHint|
+        self.setWindowFlags(QtCore.Qt.WindowType.FramelessWindowHint |
                             QtCore.Qt.WindowType.Tool)
         self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground)
-        self.setFixedSize(320,65)
+        self.setFixedSize(320, 65)
         self.frame = pixmapLoader('save_rect_frame.png')
         self.box = QtWidgets.QHBoxLayout(self)
 
         self.btn_save_py = XButton(normal=r'save_load_widget_buttons\save_py_normal.png',
-                              hovered=r'save_load_widget_buttons\save_py_hovered.png',
-                              activate=r'save_load_widget_buttons\save_py_activate.png',
-                              size=46)
+                                   hovered=r'save_load_widget_buttons\save_py_hovered.png',
+                                   activate=r'save_load_widget_buttons\save_py_activate.png',
+                                   size=46)
         self.btn_save_py.setToolTip('Save Python File\nfrom current tab')
         self.btn_save_k = XButton(normal=r'save_load_widget_buttons\save_k_normal.png',
-                              hovered=r'save_load_widget_buttons\save_k_hovered.png',
-                              activate=r'save_load_widget_buttons\save_k_activate.png',
-                              size=46)
+                                  hovered=r'save_load_widget_buttons\save_k_hovered.png',
+                                  activate=r'save_load_widget_buttons\save_k_activate.png',
+                                  size=46)
         self.btn_save_k.setToolTip('Save Kaa File')
         self.btn_load_py = XButton(normal=r'save_load_widget_buttons\load_py_normal.png',
-                              hovered=r'save_load_widget_buttons\load_py_hovered.png',
-                              activate=r'save_load_widget_buttons\load_py_activate.png',
-                              size=46)
+                                   hovered=r'save_load_widget_buttons\load_py_hovered.png',
+                                   activate=r'save_load_widget_buttons\load_py_activate.png',
+                                   size=46)
         self.btn_load_py.setToolTip('Load Python File\nto current tab')
         self.btn_load_pyplus = XButton(normal=r'save_load_widget_buttons\load_pyplus_normal.png',
-                              hovered=r'save_load_widget_buttons\load_pyplus_hovered.png',
-                              activate=r'save_load_widget_buttons\load_pyplus_activate.png',
-                              size=46)
+                                       hovered=r'save_load_widget_buttons\load_pyplus_hovered.png',
+                                       activate=r'save_load_widget_buttons\load_pyplus_activate.png',
+                                       size=46)
         self.btn_load_pyplus.setToolTip('Load Python File\nto new tab')
         self.btn_load_k = XButton(normal=r'save_load_widget_buttons\load_k_normal.png',
-                              hovered=r'save_load_widget_buttons\load_k_hovered.png',
-                              activate=r'save_load_widget_buttons\load_k_activate.png',
-                              size=46)
+                                  hovered=r'save_load_widget_buttons\load_k_hovered.png',
+                                  activate=r'save_load_widget_buttons\load_k_activate.png',
+                                  size=46)
         self.btn_load_k.setToolTip('Load Kaa File')
 
         self.box.addWidget(self.btn_save_py, alignment=QtCore.Qt.AlignmentFlag.AlignVCenter)
@@ -916,11 +921,9 @@ class SaveLoadWidget(QtWidgets.QWidget):
         self.box.addWidget(self.btn_load_pyplus, alignment=QtCore.Qt.AlignmentFlag.AlignVCenter)
         self.box.addWidget(self.btn_load_k, alignment=QtCore.Qt.AlignmentFlag.AlignVCenter)
 
-
     def paintEvent(self, event):
         painter = QtGui.QPainter(self)
-        painter.drawPixmap(QtCore.QPoint(0,0),self.frame)
-
+        painter.drawPixmap(QtCore.QPoint(0, 0), self.frame)
 
 
 #Оконный сплиттер
