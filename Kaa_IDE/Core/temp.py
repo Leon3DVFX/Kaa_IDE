@@ -192,11 +192,6 @@ class TempSystem:
         # Запись kaa файла
         with open(path, 'w+', encoding='utf-8') as file:
             file.write(f'<wins_count> = {len(mdi_area.subWindowList())}\n')
-            file.write(f'<WORK_DIRECTORY> = {self.work_dir}\n')
-            file.write(f'<X_POS> = {mdi_area.parent().parent().pos().x()}\n')
-            file.write(f'<Y_POS> = {mdi_area.parent().parent().pos().y()}\n')
-            file.write(f'<WIDTH> = {mdi_area.parent().width()}\n')
-            file.write(f'<HEIGHT> = {mdi_area.parent().height()}\n')
 
         with open(path, 'a+', encoding='utf-8') as file:
             for i, subwindow in enumerate(mdi_area.subWindowList()):
@@ -306,7 +301,11 @@ class TempSystem:
                 lna.calculate_folding(fold_data)
 
     def save_py_file(self, mdi_area = None, path = None):
-        pass
+        with open(path, 'w+', encoding='utf-8') as file:
+            editor = mdi_area.activeSubWindow().widget().editor
+            text = editor.toPlainText()
+            file.write(text)
+
     def load_py_file(self, mdi_area = None, path = None):
         pass
     def load_py_file_new_tab(self, mdi_area = None, path = None):
