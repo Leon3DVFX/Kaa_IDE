@@ -46,6 +46,7 @@ class MainButton(QtWidgets.QWidget):
         self.state = 'hide'
         #Скрытый запуск главного окна
         self.mainWindow = KaaMDIWindow(self)
+        self.mdi_area = self.mainWindow.centralWidget()
         self.mainWindow.hide()
 
         #Дополнительные кнопки
@@ -63,9 +64,15 @@ class MainButton(QtWidgets.QWidget):
         self.save_button.move(self.pos() + QtCore.QPoint(51, 33))
         self.save_button.show()
         self.save_button.clicked.connect(self.save_widget_action)
+
         # Виджет с панелью сохранения
         self.save_widget = SaveLoadWidget(self)
         self.save_widget.hide()
+        self.save_py = self.py_save_dialog()
+        self.save_kaa = self.kaa_save_dialog()
+
+        self.save_widget.btn_save_py.clicked.connect(self.save_py.exec)
+        self.save_widget.btn_save_k.clicked.connect(self.save_kaa.exec)
 
         #Обработка сигналов
         self._showing = False
@@ -99,7 +106,44 @@ class MainButton(QtWidgets.QWidget):
             self.mainWindow.hide()
 
         QtCore.QTimer.singleShot(100, lambda: setattr(mdi_area, '_ignore_activation', False))
+    # Диалоги системы сохранения-загрузки
+    def py_save_dialog(self):
+        fd = QtWidgets.QFileDialog(self.mainWindow)
+        fd.setNameFilter('Py (*.py *.pyc *.txt)')
+        fd.setDirectory(self.mdi_area.temp.work_dir)
+        fd.setAcceptMode(QtWidgets.QFileDialog.AcceptMode.AcceptSave)
+        fd.setViewMode(QtWidgets.QFileDialog.ViewMode.Detail)
+        fd.setFileMode(QtWidgets.QFileDialog.FileMode.AnyFile)
 
+        fd.fileSelected.connect(self.save_python_to_file)
+
+        return fd
+    def py_load_dialog(self):
+        pass
+    def kaa_save_dialog(self):
+        fd = QtWidgets.QFileDialog(self.mainWindow)
+        fd.setNameFilter('Kaa (*.kaa)')
+        fd.setDirectory(self.mdi_area.temp.work_dir)
+        fd.setAcceptMode(QtWidgets.QFileDialog.AcceptMode.AcceptSave)
+        fd.setViewMode(QtWidgets.QFileDialog.ViewMode.Detail)
+        fd.setFileMode(QtWidgets.QFileDialog.FileMode.AnyFile)
+
+        fd.fileSelected.connect(self.save_kaa_to_file)
+
+        return fd
+    def kaa_load_dialog(self):
+        pass
+
+    def save_python_to_file(self,path):
+        self.mdi_area.temp.work_dir = path
+        self.save_py.setDirectory(path)
+
+        print('Сохраняю', path)
+    def save_kaa_to_file(self,path):
+        self.mdi_area.temp.work_dir = path
+        self.save_py.setDirectory(path)
+
+        print('Сохраняю', path)
     #Реализация свободного перетаскивания за кнопку
     def mousePressEvent(self, e):
         self.save_widget.hide()
