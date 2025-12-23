@@ -65,14 +65,17 @@ class MainButton(QtWidgets.QWidget):
         self.save_button.show()
         self.save_button.clicked.connect(self.save_widget_action)
 
-        # Виджет с панелью сохранения
+        # Виджет с панелью сохранения + их диалоги
         self.save_widget = SaveLoadWidget(self)
         self.save_widget.hide()
         self.save_py = self.py_save_dialog()
         self.save_kaa = self.kaa_save_dialog()
+        self.load_kaa = self.kaa_load_dialog()
+
 
         self.save_widget.btn_save_py.clicked.connect(self.save_py.exec)
         self.save_widget.btn_save_k.clicked.connect(self.save_kaa.exec)
+        self.save_widget.btn_load_k.clicked.connect(self.load_kaa.exec)
 
         #Обработка сигналов
         self._showing = False
@@ -106,7 +109,9 @@ class MainButton(QtWidgets.QWidget):
             self.mainWindow.hide()
 
         QtCore.QTimer.singleShot(100, lambda: setattr(mdi_area, '_ignore_activation', False))
+
     # Диалоги системы сохранения-загрузки
+    # Диалог сохранения Py из текущего таба
     def py_save_dialog(self):
         fd = QtWidgets.QFileDialog(self.mainWindow)
         fd.setNameFilter('Py (*.py *.pyc *.txt)')
@@ -118,8 +123,10 @@ class MainButton(QtWidgets.QWidget):
         fd.fileSelected.connect(self.save_python_to_file)
 
         return fd
+
     def py_load_dialog(self):
         pass
+    # Диалог сохранения kaa
     def kaa_save_dialog(self):
         fd = QtWidgets.QFileDialog(self.mainWindow)
         fd.setNameFilter('Kaa (*.kaa)')
@@ -131,19 +138,37 @@ class MainButton(QtWidgets.QWidget):
         fd.fileSelected.connect(self.save_kaa_to_file)
 
         return fd
+
     def kaa_load_dialog(self):
-        pass
+        fd = QtWidgets.QFileDialog(self.mainWindow)
+        fd.setNameFilter('Kaa (*.kaa)')
+        fd.setDirectory(self.mdi_area.temp.work_dir)
+        fd.setAcceptMode(QtWidgets.QFileDialog.AcceptMode.AcceptOpen)
+        fd.setViewMode(QtWidgets.QFileDialog.ViewMode.Detail)
+        fd.setFileMode(QtWidgets.QFileDialog.FileMode.AnyFile)
 
-    def save_python_to_file(self,path):
+        fd.fileSelected.connect(self.load_kaa_into_file)
+
+        return fd
+
+    def save_python_to_file(self, path):
         self.mdi_area.temp.work_dir = path
         self.save_py.setDirectory(path)
+        self.mdi_area.temp.save_py_file(self.mdi_area, path)
 
-        print('Сохраняю', path)
-    def save_kaa_to_file(self,path):
+    def save_kaa_to_file(self, path):
         self.mdi_area.temp.work_dir = path
-        self.save_py.setDirectory(path)
+        self.save_kaa.setDirectory(path)
+        self.mdi_area.temp.save_kaa_file(self.mdi_area, path)
 
-        print('Сохраняю', path)
+    def load_kaa_into_file(self,path):
+        self.mdi_area.temp.work_dir = path
+        self.load_kaa.setDirectory(path)
+
+        # Загрузка Kaa
+        self.mdi_area.temp.load_kaa_file(self.mdi_area,path)
+
+
     #Реализация свободного перетаскивания за кнопку
     def mousePressEvent(self, e):
         self.save_widget.hide()
@@ -472,6 +497,11 @@ class MDIArea(QtWidgets.QMdiArea):
     def restore_window(self, index, text, cursor_pos, win_name):
         # Проверка наличия окна
         subwindows = self.subWindowList()
+        # Гарантия наличия окна с нужным индексом
+        while len(subwindows) <= index:
+            self.new_tab()
+            subwindows = self.subWindowList()
+
         # Перезапись вновь созданного окна
         subwindow = subwindows[index]
         subwindow.setWindowTitle(win_name)
@@ -948,11 +978,7 @@ class SaveLoadWidget(QtWidgets.QWidget):
                                    activate=r'save_load_widget_buttons\load_py_activate.png',
                                    size=46)
         self.btn_load_py.setToolTip('Load Python File\nto current tab')
-        self.btn_load_pyplus = XButton(normal=r'save_load_widget_buttons\load_pyplus_normal.png',
-                                       hovered=r'save_load_widget_buttons\load_pyplus_hovered.png',
-                                       activate=r'save_load_widget_buttons\load_pyplus_activate.png',
-                                       size=46)
-        self.btn_load_pyplus.setToolTip('Load Python File\nto new tab')
+
         self.btn_load_k = XButton(normal=r'save_load_widget_buttons\load_k_normal.png',
                                   hovered=r'save_load_widget_buttons\load_k_hovered.png',
                                   activate=r'save_load_widget_buttons\load_k_activate.png',
@@ -962,7 +988,6 @@ class SaveLoadWidget(QtWidgets.QWidget):
         self.box.addWidget(self.btn_save_py, alignment=QtCore.Qt.AlignmentFlag.AlignVCenter)
         self.box.addWidget(self.btn_save_k, alignment=QtCore.Qt.AlignmentFlag.AlignVCenter)
         self.box.addWidget(self.btn_load_py, alignment=QtCore.Qt.AlignmentFlag.AlignVCenter)
-        self.box.addWidget(self.btn_load_pyplus, alignment=QtCore.Qt.AlignmentFlag.AlignVCenter)
         self.box.addWidget(self.btn_load_k, alignment=QtCore.Qt.AlignmentFlag.AlignVCenter)
 
     def paintEvent(self, event):
