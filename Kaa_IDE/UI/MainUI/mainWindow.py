@@ -72,7 +72,6 @@ class MainButton(QtWidgets.QWidget):
         self.save_kaa = self.kaa_save_dialog()
         self.load_kaa = self.kaa_load_dialog()
 
-
         self.save_widget.btn_save_py.clicked.connect(self.save_py.exec)
         self.save_widget.btn_save_k.clicked.connect(self.save_kaa.exec)
         self.save_widget.btn_load_k.clicked.connect(self.load_kaa.exec)
@@ -126,6 +125,7 @@ class MainButton(QtWidgets.QWidget):
 
     def py_load_dialog(self):
         pass
+
     # Диалог сохранения kaa
     def kaa_save_dialog(self):
         fd = QtWidgets.QFileDialog(self.mainWindow)
@@ -147,7 +147,7 @@ class MainButton(QtWidgets.QWidget):
         fd.setViewMode(QtWidgets.QFileDialog.ViewMode.Detail)
         fd.setFileMode(QtWidgets.QFileDialog.FileMode.AnyFile)
 
-        fd.fileSelected.connect(self.load_kaa_into_file)
+        fd.fileSelected.connect(self.load_kaa_from_file)
 
         return fd
 
@@ -161,13 +161,34 @@ class MainButton(QtWidgets.QWidget):
         self.save_kaa.setDirectory(path)
         self.mdi_area.temp.save_kaa_file(self.mdi_area, path)
 
-    def load_kaa_into_file(self,path):
+    def load_kaa_from_file(self, path):
         self.mdi_area.temp.work_dir = path
         self.load_kaa.setDirectory(path)
+        # Проверка наличия текста в одном из окон
+        subwindows = self.mdi_area.subWindowList()
+        message = None
+        for sub in subwindows:
+            editor = sub.widget().editor
+            if not editor.toPlainText().strip():
+                continue
+            else:
+                title = 'Overwrite operation'
+                text = ('One or more windows contain text.\n'
+                        'This operation will overwrite all windows.\n'
+                        'Do you want to continue?')
+                message = QtWidgets.QMessageBox.question(
+                    self.mainWindow,
+                    title,
+                    text,
+                    QtWidgets.QMessageBox.StandardButton.Yes |
+                    QtWidgets.QMessageBox.StandardButton.No,
+                    QtWidgets.QMessageBox.StandardButton.No  # Кнопка по умолчанию
+                )
+                break
 
-        # Загрузка Kaa
-        self.mdi_area.temp.load_kaa_file(self.mdi_area,path)
-
+        if message == QtWidgets.QMessageBox.StandardButton.Yes or message is None:
+            # Загрузка Kaa
+            self.mdi_area.temp.load_kaa_file(self.mdi_area, path)
 
     #Реализация свободного перетаскивания за кнопку
     def mousePressEvent(self, e):
