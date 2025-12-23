@@ -157,7 +157,7 @@ class TempSystem:
                 all_books = None
         if all_books:
             subwindows = mdi_area.subWindowList()
-            for i,subwindow in enumerate(subwindows):
+            for i, subwindow in enumerate(subwindows):
                 book_data = all_books[i]
 
                 if not book_data:
@@ -186,14 +186,16 @@ class TempSystem:
 
                 lna = subwindow.widget().editor.line_number_area
                 lna.calculate_folding(fold_data)
+
     # Сохранение в Py файлы
-    def save_py_file(self, mdi_area = None, path = None):
+    def save_py_file(self, mdi_area=None, path=None):
         with open(path, 'w+', encoding='utf-8') as file:
             editor = mdi_area.activeSubWindow().widget().editor
             text = editor.toPlainText()
             file.write(text)
+
     # Сохранение в фаил полной версии
-    def save_kaa_file(self, mdi_area=None, path = None):
+    def save_kaa_file(self, mdi_area=None, path=None):
         # Запись kaa файла
         with open(path, 'w+', encoding='utf-8') as file:
             file.write(f'<wins_count> = {len(mdi_area.subWindowList())}\n')
@@ -232,21 +234,22 @@ class TempSystem:
             file.write(encoded_books)
             file.write(self.pickle_separator_folding)
             file.write(encoded_folds)
+
     # Загрузка полной версии из файла
-    def load_kaa_file(self, mdi_area=None, path = None):
+    def load_kaa_file(self, mdi_area=None, path=None):
         # 1. Удаление всех предыдущих окон
         mdi_area.closeAllSubWindows()
         # 2. Чтение файла
         with open(path, 'r', encoding='utf-8') as file:
             self.last_loaded = file.read()
-
         # 3. Отложенное восстановление окон
         QtCore.QTimer.singleShot(
             0,
-            lambda : self._restore_windows_phase(mdi_area)
+            lambda: self._restore_windows_phase(mdi_area)
         )
+
     # Восстановление окон под таймер (смена фазы для MDI)
-    def _restore_windows_phase(self,mdi_area):
+    def _restore_windows_phase(self, mdi_area):
         # Парсинг (общее число окон для создания)
         it = self.pattern_wins_count.globalMatch(self.last_loaded)
         n = 0
@@ -275,8 +278,9 @@ class TempSystem:
             0,
             lambda: self._restore_meta_phase(mdi_area)
         )
+
     # Восстановление бук-фолдеров (смена фазы под MDI)
-    def _restore_meta_phase(self,mdi_area):
+    def _restore_meta_phase(self, mdi_area):
         # Загрузка пиклов
         # Буки + подсветка
         all_books = None
@@ -321,12 +325,23 @@ class TempSystem:
                 lna = subwindow.widget().editor.line_number_area
                 lna.calculate_folding(fold_data)
 
+    def load_py_files(self, mdi_area=None, paths=None):
+        for path in paths:
+            text = ''
+            # Поиск имени для нового таба
+            dirs = path.split('/')
+            f = dirs[-1]
+            n = f.split('.')
+            name = n[0]
+            # Чтение текста из файла
+            with open(path, 'r', encoding='utf-8') as file:
+                text = file.read()
 
+            mdi_area.new_tab()
+            editor = mdi_area.activeSubWindow().widget().editor
+            mdi_area.activeSubWindow().setWindowTitle(name)
+            editor.setPlainText(text)
 
-    def load_py_file(self, mdi_area = None, path = None):
-        pass
-    def load_py_file_new_tab(self, mdi_area = None, path = None):
-        pass
 
 if __name__ == '__main__':
     print(temp_dir)
