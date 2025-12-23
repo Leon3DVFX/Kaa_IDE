@@ -71,10 +71,12 @@ class MainButton(QtWidgets.QWidget):
         self.save_py = self.py_save_dialog()
         self.save_kaa = self.kaa_save_dialog()
         self.load_kaa = self.kaa_load_dialog()
+        self.load_py = self.py_load_dialog()
 
         self.save_widget.btn_save_py.clicked.connect(self.save_py.exec)
         self.save_widget.btn_save_k.clicked.connect(self.save_kaa.exec)
         self.save_widget.btn_load_k.clicked.connect(self.load_kaa.exec)
+        self.save_widget.btn_load_py.clicked.connect(self.load_py.exec)
 
         #Обработка сигналов
         self._showing = False
@@ -123,9 +125,6 @@ class MainButton(QtWidgets.QWidget):
 
         return fd
 
-    def py_load_dialog(self):
-        pass
-
     # Диалог сохранения kaa
     def kaa_save_dialog(self):
         fd = QtWidgets.QFileDialog(self.mainWindow)
@@ -139,6 +138,7 @@ class MainButton(QtWidgets.QWidget):
 
         return fd
 
+    # Диалог загрузки Kaa
     def kaa_load_dialog(self):
         fd = QtWidgets.QFileDialog(self.mainWindow)
         fd.setNameFilter('Kaa (*.kaa)')
@@ -151,16 +151,31 @@ class MainButton(QtWidgets.QWidget):
 
         return fd
 
+    # Диалог загрузки Python
+    def py_load_dialog(self):
+        fd = QtWidgets.QFileDialog(self.mainWindow)
+        fd.setNameFilter('Py (*.py *.pyc *.txt)')
+        fd.setDirectory(self.mdi_area.temp.work_dir)
+        fd.setAcceptMode(QtWidgets.QFileDialog.AcceptMode.AcceptOpen)
+        fd.setViewMode(QtWidgets.QFileDialog.ViewMode.Detail)
+        fd.setFileMode(QtWidgets.QFileDialog.FileMode.ExistingFiles)
+
+        fd.filesSelected.connect(self.load_py_from_file)
+        return fd
+
+    # Функция сохранения Py
     def save_python_to_file(self, path):
         self.mdi_area.temp.work_dir = path
         self.save_py.setDirectory(path)
         self.mdi_area.temp.save_py_file(self.mdi_area, path)
 
+    # Функция сохранения Kaa
     def save_kaa_to_file(self, path):
         self.mdi_area.temp.work_dir = path
         self.save_kaa.setDirectory(path)
         self.mdi_area.temp.save_kaa_file(self.mdi_area, path)
 
+    # Функция загрузки Kaa
     def load_kaa_from_file(self, path):
         self.mdi_area.temp.work_dir = path
         self.load_kaa.setDirectory(path)
@@ -173,8 +188,8 @@ class MainButton(QtWidgets.QWidget):
                 continue
             else:
                 title = 'Overwrite operation'
-                text = ('One or more windows contain text.\n'
-                        'This operation will overwrite all windows.\n'
+                text = ('One or more tabs contain text.\n'
+                        'This operation will overwrite all tabs.\n'
                         'Do you want to continue?')
                 message = QtWidgets.QMessageBox.question(
                     self.mainWindow,
@@ -190,7 +205,11 @@ class MainButton(QtWidgets.QWidget):
             # Загрузка Kaa
             self.mdi_area.temp.load_kaa_file(self.mdi_area, path)
 
-    #Реализация свободного перетаскивания за кнопку
+    # Загрузка Python в новые табы
+    def load_py_from_file(self, paths):
+        self.mdi_area.temp.load_py_files(self.mdi_area, paths)
+
+    # Реализация свободного перетаскивания за кнопку
     def mousePressEvent(self, e):
         self.save_widget.hide()
         if e.button() == QtCore.Qt.MouseButton.LeftButton:
