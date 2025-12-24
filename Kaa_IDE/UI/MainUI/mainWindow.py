@@ -60,8 +60,9 @@ class MainButton(QtWidgets.QWidget):
         #Кнопка запуска виджета сохранения-загрузки
         self.save_button = XButton(self, normal='save_normal.png',
                                    hovered='save_hovered.png',
-                                   activate='save_activate.png')
-        self.save_button.move(self.pos() + QtCore.QPoint(51, 33))
+                                   activate='save_activate.png',
+                                   size=28)
+        self.save_button.move(self.pos() + QtCore.QPoint(54, 33))
         self.save_button.show()
         self.save_button.clicked.connect(self.save_widget_action)
 
@@ -162,11 +163,16 @@ class MainButton(QtWidgets.QWidget):
 
         fd.filesSelected.connect(self.load_py_from_file)
         return fd
+
     # Exec для сохранения py
     def save_pyexec(self):
-        name = self.mdi_area.activeSubWindow().windowTitle()
+        name = ''
+        if self.mainWindow.isVisible():
+            name = self.mdi_area.activeSubWindow().windowTitle()
+        self.save_py.setDirectory(self.mdi_area.temp.work_dir)
         self.save_py.selectFile(name)
         self.save_py.exec()
+
     # Функция сохранения Py
     def save_python_to_file(self, path):
         self.mdi_area.temp.work_dir = path
@@ -211,6 +217,7 @@ class MainButton(QtWidgets.QWidget):
 
     # Загрузка Python в новые табы
     def load_py_from_file(self, paths):
+        self.mdi_area.temp.work_dir = paths[-1]
         self.mdi_area.temp.load_py_files(self.mdi_area, paths)
 
     # Реализация свободного перетаскивания за кнопку
@@ -1021,7 +1028,7 @@ class SaveLoadWidget(QtWidgets.QWidget):
                                    hovered=r'save_load_widget_buttons\load_py_hovered.png',
                                    activate=r'save_load_widget_buttons\load_py_activate.png',
                                    size=46)
-        self.btn_load_py.setToolTip('Load Python File\nto current tab')
+        self.btn_load_py.setToolTip('Load Python Files')
 
         self.btn_load_k = XButton(normal=r'save_load_widget_buttons\load_k_normal.png',
                                   hovered=r'save_load_widget_buttons\load_k_hovered.png',
