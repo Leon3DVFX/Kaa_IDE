@@ -73,7 +73,7 @@ class MainButton(QtWidgets.QWidget):
         self.load_kaa = self.kaa_load_dialog()
         self.load_py = self.py_load_dialog()
 
-        self.save_widget.btn_save_py.clicked.connect(self.save_py.exec)
+        self.save_widget.btn_save_py.clicked.connect(self.save_pyexec)
         self.save_widget.btn_save_k.clicked.connect(self.save_kaa.exec)
         self.save_widget.btn_load_k.clicked.connect(self.load_kaa.exec)
         self.save_widget.btn_load_py.clicked.connect(self.load_py.exec)
@@ -162,7 +162,11 @@ class MainButton(QtWidgets.QWidget):
 
         fd.filesSelected.connect(self.load_py_from_file)
         return fd
-
+    # Exec для сохранения py
+    def save_pyexec(self):
+        name = self.mdi_area.activeSubWindow().windowTitle()
+        self.save_py.selectFile(name)
+        self.save_py.exec()
     # Функция сохранения Py
     def save_python_to_file(self, path):
         self.mdi_area.temp.work_dir = path
