@@ -7,6 +7,7 @@ from Kaa_IDE.UI.MainUI.logWidget import Logout
 
 from Kaa_IDE.Core.loaders import iconLoader, pixmapLoader, cssLoader
 from Kaa_IDE.Core.temp import TempSystem
+from Kaa_IDE.UI.Styles.tab_bar import css as tab_css
 from Kaa_IDE.UI.MainUI.internetBrowser import BrowserWindow
 
 
@@ -446,7 +447,7 @@ class MDIArea(QtWidgets.QMdiArea):
         if not tab_bar:
             return
         else:
-            tab_bar.setStyleSheet(cssLoader('tab_bar.css'))
+            tab_bar.setStyleSheet(tab_css)
         #Настройка
         tab_bar.setExpanding(False)
         tab_bar.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.CustomContextMenu)
