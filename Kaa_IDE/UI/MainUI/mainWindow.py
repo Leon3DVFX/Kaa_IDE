@@ -19,7 +19,7 @@ class MainButton(QtWidgets.QWidget):
         self.buttonPos = self.pos()
         self.setWindowOpacity(0.3)
         self.opAnim = QtCore.QPropertyAnimation(self, b'windowOpacity')
-        # self.setAttribute(QtCore.Qt.WidgetAttribute.WA_DeleteOnClose)
+        self.setAttribute(QtCore.Qt.WidgetAttribute.WA_DeleteOnClose)
         #Таймер для фиксации между кликом и драгом
         self.clickTimer = QtCore.QTimer()
         self.clickTimer.setInterval(200)
@@ -316,7 +316,7 @@ class KaaMDIWindow(QtWidgets.QMainWindow):
 
         self.setFocusPolicy(QtCore.Qt.FocusPolicy.StrongFocus)
         self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground)
-        self.setWindowTitle('Kaa_IDE v0.05')
+        self.setWindowTitle('Kaa_IDE v0.12')
         self.mdi_central = MDIArea(self)
         self.setCentralWidget(self.mdi_central)
 
@@ -366,6 +366,7 @@ class MDIArea(QtWidgets.QMdiArea):
         self.setViewMode(QtWidgets.QMdiArea.ViewMode.TabbedView)
         self.setFocusPolicy(QtCore.Qt.FocusPolicy.StrongFocus)
         self.setTabsMovable(True)
+        self.setTabsClosable(True)
         self.main_win = parent
         #Текущее окно при создании
         self.current = self.startSubWindow
