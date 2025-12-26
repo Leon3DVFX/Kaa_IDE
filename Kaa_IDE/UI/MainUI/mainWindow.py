@@ -479,11 +479,6 @@ class MDIArea(QtWidgets.QMdiArea):
         act2.setIcon(self.rename_icon)
         menu.addAction(act2)
         act2.triggered.connect(self.rename_tab)
-        #Закрыть таб
-        act3 = QtGui.QAction('Close Tab')
-        act3.setIcon(self.close_icon)
-        menu.addAction(act3)
-        act3.triggered.connect(lambda: self.close_tab(idx))
 
         #Позиция вызова
         global_pos = tab_bar.mapToGlobal(point)
