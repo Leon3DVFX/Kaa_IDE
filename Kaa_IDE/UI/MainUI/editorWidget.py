@@ -507,38 +507,19 @@ class EditorMain(QtWidgets.QPlainTextEdit):
         self.textCursor().beginEditBlock()
         regex_ident = QtCore.QRegularExpression(r'^ +')
         regex_end = QtCore.QRegularExpression(r':\s*$')
-        regex_insert = QtCore.QRegularExpression(r'(\(|\[|\{)(.*)(,|\|){1}\s*$')
+
 
         block_str = self.textCursor().block().text()
         match1 = regex_ident.match(block_str)
         match2 = regex_end.match(block_str)
-        match3 = regex_insert.match(block_str)
 
-        if match1.hasMatch() and self.textCursor().atBlockEnd():  # Контроль отступов
+        if match1.hasMatch():  # Контроль отступов
             spacer = match1.captured(0)
         if match2.hasMatch():  # Контроль отступов после (:)
             if self.textCursor().atBlockEnd():
                 std_spacer = ' ' * 4
-        if match3.hasMatch():  # Контроль отступов для вкладышей
-            sym = match3.captured(1)
-            instr = match3.captured(2)
-            l = len(block_str) - len(instr) - 1
 
-            if sym == '(':
-                ender = ')'
-            elif sym == '{':
-                ender = '}'
-            elif sym == '[':
-                ender = ']'
-
-            spacer = ' ' * l
-
-            if not self.textCursor().atBlockEnd():
-                spacer = match1.captured(0)
-                ender = ''
         self.insertPlainText('\n' + spacer + std_spacer + ender)
-        if ender != '':
-            self.moveCursor(QtGui.QTextCursor.MoveOperation.Left)
 
         self.textCursor().endEditBlock()
 
