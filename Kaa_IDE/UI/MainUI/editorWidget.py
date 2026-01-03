@@ -504,6 +504,7 @@ class EditorMain(QtWidgets.QPlainTextEdit):
         spacer = ''
         std_spacer = ''
         ender = ''
+
         self.textCursor().beginEditBlock()
         regex_ident = QtCore.QRegularExpression(r'^ +')
         regex_end = QtCore.QRegularExpression(r':\s*$')
@@ -516,8 +517,18 @@ class EditorMain(QtWidgets.QPlainTextEdit):
         if match1.hasMatch():  # Контроль отступов
             spacer = match1.captured(0)
         if match2.hasMatch():  # Контроль отступов после (:)
+            block_num = self.textCursor().blockNumber()
             if self.textCursor().atBlockEnd():
-                std_spacer = ' ' * 4
+                if  self.document().findBlockByNumber(block_num + 1).isValid() and not self.document().findBlockByNumber(block_num + 1).isVisible():
+                    while self.document().findBlockByNumber(block_num + 1).isValid() and not self.document().findBlockByNumber(block_num + 1).isVisible():
+                        block_num += 1
+                    end_block = self.document().findBlockByNumber(block_num)
+                    pos = end_block.position() + end_block.length() - 1
+                    cursor = self.textCursor()
+                    cursor.setPosition(pos)
+                    self.setTextCursor(cursor)
+                else:
+                    std_spacer = ' ' * 4
 
         self.insertPlainText('\n' + spacer + std_spacer + ender)
 
