@@ -1,5 +1,6 @@
 from PySide6 import QtWidgets, QtCore, QtGui
 from Kaa_IDE.Core.loaders import jsonLoader, iconLoader
+import ast
 
 
 class ItemModel(QtGui.QStandardItemModel):
@@ -19,6 +20,9 @@ class ItemModel(QtGui.QStandardItemModel):
 
         self.magic_icon = iconLoader(r'complitter_icons\magic_icon.png')
         self.append_to_tab("magic", self.magic_icon)
+
+        # Дополнительные иконки
+        self.obj_icon = iconLoader(r'complitter_icons\obj_icon.png')
 
     def append_to_tab(self, j_type, icon):
         w_list = self.elements.get(j_type, [])
@@ -45,7 +49,8 @@ class CompleterTableView(QtWidgets.QTableView):
     def __init__(self, parent=None):
         super().__init__(parent)
         # Запуск прокси модели
-        self.base_model = ItemModel()
+        self.editor = parent
+        self.base_model = ItemModel(self)
         self.proxy_model = QtCore.QSortFilterProxyModel(self)
         self.proxy_model.setSourceModel(self.base_model)
         self.proxy_model.setFilterCaseSensitivity(QtCore.Qt.CaseSensitivity.CaseInsensitive)
@@ -73,6 +78,46 @@ class CompleterTableView(QtWidgets.QTableView):
         self.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
         self.sortByColumn(0, QtCore.Qt.SortOrder.AscendingOrder)
         self.selectRow(0)
+        # Переменный анализ
+        self.vars_f = VarFinder()
+        self.var_items = []
+        self.vars = set()
+        self.editor.document().contentsChange.connect(self.on_var)
+
+    def on_var(self):
+        self.vars_f.vars = set()
+        # проходим по каждому блоку документа
+        for i in range(self.editor.document().blockCount()):
+            block_text = self.editor.document().findBlockByNumber(i).text()
+            try:
+                tree = ast.parse(block_text)
+                self.vars_f.visit(tree)
+            except SyntaxError:
+                # пропускаем недописанные строки
+                continue
+
+        self.vars = self.vars_f.vars
+
+        for item in self.var_items:
+            self.base_model.removeRow(item.row())
+        self.var_items.clear()
+
+        if self.vars:
+            for e in self.vars:
+                elem1 =  QtGui.QStandardItem()
+                elem1.setText(e)
+                elem1.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignVCenter)
+                elem1.setForeground(QtGui.QColor('#D5D5D5'))
+                elem1.setIcon(self.base_model.obj_icon) # Иконка
+
+                elem2 = QtGui.QStandardItem()
+                elem2.setText("obj")
+                elem2.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
+
+                row = self.base_model.rowCount()
+                self.base_model.appendRow([elem1, elem2])
+                # сохраняем ссылку на строку
+                self.var_items.append(self.base_model.item(row))
 
     def filter_proxy(self, text):
         self.proxy_model.setFilterFixedString(text)
@@ -114,7 +159,6 @@ class CompleterTableView(QtWidgets.QTableView):
                       QtWidgets.QAbstractItemView.ScrollHint.PositionAtCenter)
 
 
-
 class CombinedDelegate(QtWidgets.QStyledItemDelegate):
     def paint(self, painter, option, index):
         if index.column() == 0:
@@ -135,6 +179,20 @@ class CombinedDelegate(QtWidgets.QStyledItemDelegate):
             # вторую колонку делаем невидимой
             return
 
+# Поисковик переменных
+class VarFinder(ast.NodeVisitor):
+    def __init__(self):
+        self.vars = set()
+
+    def visit_Assign(self, node):
+        for t in node.targets:
+            if isinstance(t, ast.Name):
+                self.vars.add(t.id)
+            elif isinstance(t,ast.Tuple):
+                for e in t.elts:
+                    if isinstance(e, ast.Name):
+                        self.vars.add(e.id)
+        self.generic_visit(node)
 
 
 if __name__ == '__main__':
