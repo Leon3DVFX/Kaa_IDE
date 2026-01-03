@@ -1102,12 +1102,12 @@ class LineNumberArea(QtWidgets.QWidget):
 
             # --- добавление блоков
             if is_added:
-                if block_num >= start_block_num:
+                if block_num > start_block_num:
                     block_num += delta
 
             # --- удаление блоков
             else:
-                if start_block_num <= block_num < start_block_num + delta:
+                if start_block_num < block_num < start_block_num + delta:
                     continue  # bookmark удалён
                 elif block_num >= start_block_num + delta:
                     block_num -= delta
