@@ -247,12 +247,13 @@ class EditorMain(QtWidgets.QPlainTextEdit):
         self.draw_folded_icons(event)
 
         super().paintEvent(event)
-    def draw_background(self,event):
+
+    def draw_background(self, event):
         painter = QtGui.QPainter(self.viewport())
         painter.setCompositionMode(QtGui.QPainter.CompositionMode.CompositionMode_Source)
         color = QtGui.QColor('#1E1F22')
         color.setAlpha(self.alpha)
-        painter.fillRect(self.rect(),color)
+        painter.fillRect(self.rect(), color)
 
     def draw_bookmark_lines(self, event):
         painter = QtGui.QPainter(self.viewport())
@@ -509,7 +510,6 @@ class EditorMain(QtWidgets.QPlainTextEdit):
         regex_ident = QtCore.QRegularExpression(r'^ +')
         regex_end = QtCore.QRegularExpression(r':\s*$')
 
-
         block_str = self.textCursor().block().text()
         match1 = regex_ident.match(block_str)
         match2 = regex_end.match(block_str)
@@ -519,8 +519,11 @@ class EditorMain(QtWidgets.QPlainTextEdit):
         if match2.hasMatch():  # Контроль отступов после (:)
             block_num = self.textCursor().blockNumber()
             if self.textCursor().atBlockEnd():
-                if  self.document().findBlockByNumber(block_num + 1).isValid() and not self.document().findBlockByNumber(block_num + 1).isVisible():
-                    while self.document().findBlockByNumber(block_num + 1).isValid() and not self.document().findBlockByNumber(block_num + 1).isVisible():
+                if self.document().findBlockByNumber(block_num + 1).isValid() and not self.document().findBlockByNumber(
+                        block_num + 1).isVisible():
+                    while self.document().findBlockByNumber(
+                            block_num + 1).isValid() and not self.document().findBlockByNumber(
+                            block_num + 1).isVisible():
                         block_num += 1
                     end_block = self.document().findBlockByNumber(block_num)
                     pos = end_block.position() + end_block.length() - 1
@@ -940,15 +943,15 @@ class EditorMain(QtWidgets.QPlainTextEdit):
         if deleted > 0 or created > 10:
             return
 
-        group_1 = r',.: [{('
-        group_2 = r',.]})'
+        group_1 = r',: [{('
+        group_2 = r',]})'
 
         cursor = self.textCursor()
         cursor.select(QtGui.QTextCursor.SelectionType.WordUnderCursor)
         text = cursor.selectedText()
         start_pos = cursor_pos
         # text.startswith(group_2)
-        # print(text, text.startswith(tuple(group_2))) # Тестилка
+        # print(text) # Тестилка
 
         if text.startswith(tuple(group_2)):
             doc = self.document()
@@ -1010,7 +1013,7 @@ class EditorMain(QtWidgets.QPlainTextEdit):
         text = index.data()  # текст выбранного пункта
         meta = index.sibling(index.row(), 1).data()  # текст мета (1ой колонки) для анализа поведения курсора
 
-        if meta == "builtins":
+        if meta == "builtins" or meta == "def function":
             cursor = self.textCursor()
             cursor.setPosition(self.start_complete)
             cursor.setPosition(self.end_complete, QtGui.QTextCursor.MoveMode.KeepAnchor)
