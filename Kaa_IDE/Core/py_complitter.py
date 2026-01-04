@@ -23,6 +23,8 @@ class ItemModel(QtGui.QStandardItemModel):
 
         # Дополнительные иконки
         self.obj_icon = iconLoader(r'complitter_icons\obj_icon.png')
+        self.class_icon = iconLoader(r'complitter_icons\class_icon.png')
+        self.f_icon = iconLoader(r'complitter_icons\f_icon.png')
 
     def append_to_tab(self, j_type, icon):
         w_list = self.elements.get(j_type, [])
@@ -44,6 +46,7 @@ class ItemModel(QtGui.QStandardItemModel):
             elem2.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
 
             self.appendRow([elem1, elem2])
+
 
 class CompleterTableView(QtWidgets.QTableView):
     def __init__(self, parent=None):
@@ -78,37 +81,50 @@ class CompleterTableView(QtWidgets.QTableView):
         self.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
         self.sortByColumn(0, QtCore.Qt.SortOrder.AscendingOrder)
         self.selectRow(0)
-        # Переменный анализ
-        self.vars_f = VarFinder()
+        # Глобальные переменные, функции, классы
+        self.vars_f = ObjFinder()
+        self.def_f = DefFinder()
         self.var_items = []
+        self.func_items = []
+        self.class_items = []
         self.vars = set()
+        self.funcs = set()
+        self.classes = set()
         self.editor.document().contentsChange.connect(self.on_var)
 
     def on_var(self):
-        self.vars_f.vars = set()
-        # проходим по каждому блоку документа
-        for i in range(self.editor.document().blockCount()):
-            block_text = self.editor.document().findBlockByNumber(i).text()
-            try:
-                tree = ast.parse(block_text)
-                self.vars_f.visit(tree)
-            except SyntaxError:
-                # пропускаем недописанные строки
-                continue
+        self.vars_f.vars.clear()
+        self.def_f.funcs.clear()
+        self.def_f.classes.clear()
+        code = self.editor.toPlainText()
+        # Проходим по каждому блоку документа
+
+        try:
+            tree = ast.parse(code)
+            self.vars_f.visit(tree)
+            self.def_f.visit(tree)
+        except SyntaxError:
+            # пропускаем недописанные строки
+            return
 
         self.vars = self.vars_f.vars
-
-        for item in self.var_items:
+        self.funcs = self.def_f.funcs
+        self.classes = self.def_f.classes
+        # Очистка предыдущих
+        for item in self.var_items + self.func_items + self.class_items:
             self.base_model.removeRow(item.row())
-        self.var_items.clear()
 
+        self.var_items.clear()
+        self.func_items.clear()
+        self.class_items.clear()
+        # Глобальные переменные
         if self.vars:
             for e in self.vars:
-                elem1 =  QtGui.QStandardItem()
+                elem1 = QtGui.QStandardItem()
                 elem1.setText(e)
                 elem1.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignVCenter)
                 elem1.setForeground(QtGui.QColor('#D5D5D5'))
-                elem1.setIcon(self.base_model.obj_icon) # Иконка
+                elem1.setIcon(self.base_model.obj_icon)  # Иконка
 
                 elem2 = QtGui.QStandardItem()
                 elem2.setText("obj")
@@ -118,6 +134,40 @@ class CompleterTableView(QtWidgets.QTableView):
                 self.base_model.appendRow([elem1, elem2])
                 # сохраняем ссылку на строку
                 self.var_items.append(self.base_model.item(row))
+        # Все функции
+        if self.funcs:
+            for e in self.funcs:
+                elem1 = QtGui.QStandardItem()
+                elem1.setText(e)
+                elem1.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignVCenter)
+                elem1.setForeground(QtGui.QColor('#D489FF'))
+                elem1.setIcon(self.base_model.f_icon)
+
+                elem2 = QtGui.QStandardItem()
+                elem2.setText('def function')
+                elem2.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
+
+                row = self.base_model.rowCount()
+                self.base_model.appendRow([elem1, elem2])
+                # сохраняем ссылку на строку
+                self.func_items.append(self.base_model.item(row))
+        # Все классы
+        if self.classes:
+            for e in self.classes:
+                elem1 = QtGui.QStandardItem()
+                elem1.setText(e)
+                elem1.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignVCenter)
+                elem1.setForeground(QtGui.QColor('#EE8133'))
+                elem1.setIcon(self.base_model.class_icon)
+
+                elem2 = QtGui.QStandardItem()
+                elem2.setText('class')
+                elem2.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
+
+                row = self.base_model.rowCount()
+                self.base_model.appendRow([elem1, elem2])
+                # сохраняем ссылку на строку
+                self.class_items.append(self.base_model.item(row))
 
     def filter_proxy(self, text):
         self.proxy_model.setFilterFixedString(text)
@@ -143,7 +193,7 @@ class CompleterTableView(QtWidgets.QTableView):
             new_row = 0
 
         self.selectRow(new_row)
-        self.scrollTo(self.model().index(new_row,0),
+        self.scrollTo(self.model().index(new_row, 0),
                       QtWidgets.QAbstractItemView.ScrollHint.PositionAtCenter)
 
     def select_previous(self):
@@ -179,8 +229,9 @@ class CombinedDelegate(QtWidgets.QStyledItemDelegate):
             # вторую колонку делаем невидимой
             return
 
-# Поисковик переменных
-class VarFinder(ast.NodeVisitor):
+
+# Поисковик глобальных переменных
+class ObjFinder(ast.NodeVisitor):
     def __init__(self):
         self.vars = set()
 
@@ -188,10 +239,29 @@ class VarFinder(ast.NodeVisitor):
         for t in node.targets:
             if isinstance(t, ast.Name):
                 self.vars.add(t.id)
-            elif isinstance(t,ast.Tuple):
+            elif isinstance(t, ast.Tuple):
                 for e in t.elts:
                     if isinstance(e, ast.Name):
                         self.vars.add(e.id)
+        self.generic_visit(node)
+
+
+# Поисковик функций и классов
+class DefFinder(ast.NodeVisitor):
+    def __init__(self):
+        self.funcs = set()
+        self.classes = set()
+
+    def visit_FunctionDef(self, node):
+        self.funcs.add(node.name)
+        self.generic_visit(node)
+
+    def visit_AsyncFunctionDef(self, node):
+        self.funcs.add(node.name)
+        self.generic_visit(node)
+
+    def visit_ClassDef(self, node):
+        self.classes.add(node.name)
         self.generic_visit(node)
 
 
