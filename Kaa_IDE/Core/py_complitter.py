@@ -14,12 +14,12 @@ class ItemModel(QtGui.QStandardItemModel):
 
         self.b_icon = iconLoader(r'complitter_icons\builtins_icon.png')
         self.append_to_tab("builtins", self.b_icon)
-
+        # Список общих модулей (временно отключаю)
         self.mod_icon = iconLoader(r'complitter_icons\std_mod_icon.png')
-        self.append_to_tab("modules", self.mod_icon)
-
+        # self.append_to_tab("modules", self.mod_icon)
+        # Список магических методов (временно отключаю)
         self.magic_icon = iconLoader(r'complitter_icons\magic_icon.png')
-        self.append_to_tab("magic", self.magic_icon)
+        # self.append_to_tab("magic", self.magic_icon)
 
         # Дополнительные иконки
         self.obj_icon = iconLoader(r'complitter_icons\obj_icon.png')
@@ -84,18 +84,21 @@ class CompleterTableView(QtWidgets.QTableView):
         # Глобальные переменные, функции, классы
         self.vars_f = ObjFinder()
         self.def_f = DefFinder()
+        self.import_f = ImportFinder()
         self.var_items = []
         self.func_items = []
         self.class_items = []
+        self.import_items = []
         self.vars = set()
         self.funcs = set()
         self.classes = set()
-        self.editor.document().contentsChange.connect(self.on_var)
+        self.imports = set()
+        self.editor.document().blockCountChanged.connect(self.on_var)
 
     def on_var(self):
         self.vars_f.vars.clear()
         self.def_f.funcs.clear()
-        self.def_f.classes.clear()
+        self.import_f.visible.clear()
         code = self.editor.toPlainText()
         # Проходим по каждому блоку документа
 
@@ -103,6 +106,7 @@ class CompleterTableView(QtWidgets.QTableView):
             tree = ast.parse(code)
             self.vars_f.visit(tree)
             self.def_f.visit(tree)
+            self.import_f.visit(tree)
         except SyntaxError:
             # пропускаем недописанные строки
             return
@@ -110,13 +114,15 @@ class CompleterTableView(QtWidgets.QTableView):
         self.vars = self.vars_f.vars
         self.funcs = self.def_f.funcs
         self.classes = self.def_f.classes
+        self.imports = self.import_f.visible
         # Очистка предыдущих
-        for item in self.var_items + self.func_items + self.class_items:
+        for item in self.var_items + self.func_items + self.class_items + self.import_items:
             self.base_model.removeRow(item.row())
 
         self.var_items.clear()
         self.func_items.clear()
         self.class_items.clear()
+        self.import_items.clear()
         # Глобальные переменные
         if self.vars:
             for e in self.vars:
@@ -137,6 +143,8 @@ class CompleterTableView(QtWidgets.QTableView):
         # Все функции
         if self.funcs:
             for e in self.funcs:
+                if e.startswith('__'):
+                    continue
                 elem1 = QtGui.QStandardItem()
                 elem1.setText(e)
                 elem1.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignVCenter)
@@ -162,6 +170,23 @@ class CompleterTableView(QtWidgets.QTableView):
 
                 elem2 = QtGui.QStandardItem()
                 elem2.setText('class')
+                elem2.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
+
+                row = self.base_model.rowCount()
+                self.base_model.appendRow([elem1, elem2])
+                # сохраняем ссылку на строку
+                self.class_items.append(self.base_model.item(row))
+        # Импорты
+        if self.imports:
+            for e in self.imports:
+                elem1 = QtGui.QStandardItem()
+                elem1.setText(e)
+                elem1.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignVCenter)
+                elem1.setForeground(QtGui.QColor('#E0D57B'))
+                elem1.setIcon(self.base_model.mod_icon)
+
+                elem2 = QtGui.QStandardItem()
+                elem2.setText('import')
                 elem2.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
 
                 row = self.base_model.rowCount()
@@ -264,6 +289,25 @@ class DefFinder(ast.NodeVisitor):
         self.classes.add(node.name)
         self.generic_visit(node)
 
+# Поисковик модулей
+class ImportFinder(ast.NodeVisitor):
+    def __init__(self):
+        self.visible = set()   # имена, доступные в коде
+
+    def visit_Import(self, node):
+        for n in node.names:
+            if n.asname:
+                self.visible.add(n.asname)
+            else:
+                # import a.b.c → доступен "a"
+                self.visible.add(n.name.split('.')[0])
+
+    def visit_ImportFrom(self, node):
+        for n in node.names:
+            if n.asname:
+                self.visible.add(n.asname)
+            else:
+                self.visible.add(n.name)
 
 if __name__ == '__main__':
     import sys
