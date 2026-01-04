@@ -901,7 +901,11 @@ class MainWindow(QtWidgets.QWidget):
         self.editor_main.editorFontChanged.connect(self.logoutFontChange)
         self.editor.setFocus()
         self.setMouseTracking(True)
-
+        # Словарь для хранения глобальных переменных между запусками
+        self.global_env = {
+            '__name__': '__main__',
+            '__builtins__': __builtins__,
+        }
     #Сигнал для кнопки (на случай отдельного закрытия)
     def closeEvent(self, e):
         self.closeSignal.emit()
@@ -922,12 +926,9 @@ class MainWindow(QtWidgets.QWidget):
         old_stdout, old_stderr = sys.stdout, sys.stderr
         sys.stdout, sys.stderr = buffer, buffer
 
-        #РЕЖИМ ПЕСОЧНИЦА!!!
-        editor_env = dict()
-
         try:
             _compiled = compile(code, '<Script Editor>', "exec")
-            exec(_compiled, editor_env, editor_env)
+            exec(_compiled, self.global_env)
         except Exception as e:
             _tb = ''.join(traceback.format_exception(type(e), e, e.__traceback__))
             buffer.write(_tb)
