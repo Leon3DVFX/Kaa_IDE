@@ -899,6 +899,7 @@ class MainWindow(QtWidgets.QWidget):
         #Обработка сигналов
         self.editor.runCodeSignal.connect(self.run_code)
         self.editor.envRefresh.connect(self.env_refresh)
+        self.editor.getEnv.connect(self.get_env)
         self.editor_main.editorFontChanged.connect(self.logoutFontChange)
         self.editor.setFocus()
         self.setMouseTracking(True)
@@ -907,6 +908,23 @@ class MainWindow(QtWidgets.QWidget):
             '__name__': '__main__',
             '__builtins__': __builtins__,
         }
+    # Получение env (заготовка под вызов виджета)
+    def get_env(self):
+        self.logout.clear()
+        gl_dict = self.global_env
+        res_str = ''
+
+        for k in gl_dict.keys():
+            if k.startswith('_'):
+                continue
+
+            res_str += f"Object -> '{k}', Type -> {type(gl_dict.get(k))}, Value - {gl_dict.get(k)}\n"
+
+        if res_str == '':
+            message = 'Environment is clear'
+            self.logout.setPlainText(message)
+        else:
+            self.logout.setPlainText(res_str)
 
     # Сброс env
     def env_refresh(self):
