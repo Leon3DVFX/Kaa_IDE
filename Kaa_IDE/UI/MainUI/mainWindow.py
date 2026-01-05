@@ -898,6 +898,7 @@ class MainWindow(QtWidgets.QWidget):
 
         #Обработка сигналов
         self.editor.runCodeSignal.connect(self.run_code)
+        self.editor.envRefresh.connect(self.env_refresh)
         self.editor_main.editorFontChanged.connect(self.logoutFontChange)
         self.editor.setFocus()
         self.setMouseTracking(True)
@@ -906,6 +907,14 @@ class MainWindow(QtWidgets.QWidget):
             '__name__': '__main__',
             '__builtins__': __builtins__,
         }
+
+    # Сброс env
+    def env_refresh(self):
+        self.global_env = {
+            '__name__': '__main__',
+            '__builtins__': __builtins__,
+        }
+
     #Сигнал для кнопки (на случай отдельного закрытия)
     def closeEvent(self, e):
         self.closeSignal.emit()
@@ -936,6 +945,8 @@ class MainWindow(QtWidgets.QWidget):
             sys.stdout, sys.stderr = old_stdout, old_stderr
 
         self.logout.appendPlainText(buffer.getvalue())
+
+        # self.logout.appendPlainText(str(self.global_env)) #Тестер
 
     @QtCore.Slot(QtGui.QFont)
     def logoutFontChange(self, font):
