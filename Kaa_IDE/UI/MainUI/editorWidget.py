@@ -69,6 +69,8 @@ class EditorMain(QtWidgets.QPlainTextEdit):
     runCodeSignal = QtCore.Signal()
     #Сигнал - пересчет изменения блоков
     blockStateChanged = QtCore.Signal(int, int, int, bool)
+    # Сигнал сброса env
+    envRefresh = QtCore.Signal()
 
     #Инициализация редактора текста
     def __init__(self, parent):
@@ -129,6 +131,8 @@ class EditorMain(QtWidgets.QPlainTextEdit):
         self.pasteId = self.grabShortcut(QtGui.QKeySequence('Ctrl+D'), QtCore.Qt.ShortcutContext.WidgetShortcut)
         #SHIFT+TAB
         self.removeTabId = self.grabShortcut(QtGui.QKeySequence('Shift+Tab'), QtCore.Qt.ShortcutContext.WidgetShortcut)
+        # CTRL+R - сброс env для текущего таба (Editor)
+        self.refreshTab = self.grabShortcut(QtGui.QKeySequence('Ctrl+R'), QtCore.Qt.ShortcutContext.WidgetShortcut)
         #Сигналы
         self.cursorPositionChanged.connect(self.on_cursor_change)
         self.cursorPositionChanged.connect(lambda: self.complitter.hide())
@@ -422,6 +426,9 @@ class EditorMain(QtWidgets.QPlainTextEdit):
                 elif e.shortcutId() == self.removeTabId:
                     self.shiftTabKey()
                     return True
+                elif e.shortcutId() == self.refreshTab:
+                    self.envRefresh.emit()
+                    return True
             case _:
                 return super().event(e)
 
@@ -523,7 +530,7 @@ class EditorMain(QtWidgets.QPlainTextEdit):
                         block_num + 1).isVisible():
                     while self.document().findBlockByNumber(
                             block_num + 1).isValid() and not self.document().findBlockByNumber(
-                            block_num + 1).isVisible():
+                        block_num + 1).isVisible():
                         block_num += 1
                     end_block = self.document().findBlockByNumber(block_num)
                     pos = end_block.position() + end_block.length() - 1
