@@ -71,6 +71,8 @@ class EditorMain(QtWidgets.QPlainTextEdit):
     blockStateChanged = QtCore.Signal(int, int, int, bool)
     # Сигнал сброса env
     envRefresh = QtCore.Signal()
+    # Сигнал на получение env
+    getEnv = QtCore.Signal()
 
     #Инициализация редактора текста
     def __init__(self, parent):
@@ -114,10 +116,10 @@ class EditorMain(QtWidgets.QPlainTextEdit):
         # Доп кнопки
         self.unfold_all_btn = self.create_unfold_all_btn()
         self.show_hide_lines_btn = self.create_show_hide_lines_btn()
+        self.env_btn = self.create_env_btn()
         self.updateRequest.connect(self.update_unfold_btn_pos)
         self.updateRequest.connect(self.update_lines_btn_pos)
-        self.unfold_all_btn.show()
-        self.show_hide_lines_btn.show()
+        self.updateRequest.connect(self.update_env_btn_pos)
         self.unfold_all_btn.clicked.connect(self.unfold_all)
         #Шорткаты окна
         #Zoom (CTRL++, CTRL+-)
@@ -173,6 +175,21 @@ class EditorMain(QtWidgets.QPlainTextEdit):
         btn.move(QtCore.QPoint(x, y))
         return btn
 
+    def create_env_btn(self):
+        btn = SubButton(parent=self.viewport(), normal=r'line_area_icons\env_normal.png',
+                        hovered=r'line_area_icons\env_hovered.png',
+                        active=r'line_area_icons\env_active.png', sizeX=39, sizeY=24)
+
+        btn.effect.setOpacity(0.75)
+        btn.setToolTip('Environment Info')
+
+        x = self.viewport().width() - 2 * self.show_hide_lines_btn.width() - btn.width() - 2
+        y = 0
+
+        btn.move(QtCore.QPoint(x, y))
+        btn.clicked.connect(self.get_env)
+        return btn
+
     def update_unfold_btn_pos(self):
         vp = self.viewport()
         self.unfold_all_btn.move(
@@ -186,6 +203,16 @@ class EditorMain(QtWidgets.QPlainTextEdit):
             vp.width() - 2 * self.show_hide_lines_btn.width() - 4,
             4
         )
+
+    def update_env_btn_pos(self):
+        vp = self.viewport()
+        self.env_btn.move(
+            vp.width() - 2 * self.show_hide_lines_btn.width() - self.env_btn.width() - 8,
+            8
+        )
+
+    def get_env(self):
+        self.getEnv.emit()
 
     @QtCore.Slot()
     def unfold_all(self):
@@ -1368,7 +1395,7 @@ class LineNumberArea(QtWidgets.QWidget):
 
 # Вспомогалки (кнопки)
 class SubButton(QtWidgets.QPushButton):
-    def __init__(self, parent=None, normal=None, hovered=None, active=None):
+    def __init__(self, parent=None, normal=None, hovered=None, active=None, sizeX=32, sizeY=32):
         super().__init__(parent)
         self.effect = QtWidgets.QGraphicsOpacityEffect(self)
         self.effect.setOpacity(0.3)
@@ -1380,19 +1407,19 @@ class SubButton(QtWidgets.QPushButton):
         else:
             self.state = 'normal'
 
-        self.setFixedSize(32, 32)
+        self.setFixedSize(sizeX, sizeY)
         self.pixmapOut = pixmapLoader(normal).scaled(
-            32, 32,
+            sizeX, sizeY,
             QtCore.Qt.AspectRatioMode.KeepAspectRatio,
             QtCore.Qt.TransformationMode.SmoothTransformation
         )
         self.pixmapIn = pixmapLoader(hovered).scaled(
-            32, 32,
+            sizeX, sizeY,
             QtCore.Qt.AspectRatioMode.KeepAspectRatio,
             QtCore.Qt.TransformationMode.SmoothTransformation
         )
         self.pixmapAct = pixmapLoader(active).scaled(
-            32, 32,
+            sizeX, sizeY,
             QtCore.Qt.AspectRatioMode.KeepAspectRatio,
             QtCore.Qt.TransformationMode.SmoothTransformation
         )
