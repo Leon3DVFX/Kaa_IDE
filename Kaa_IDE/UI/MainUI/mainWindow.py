@@ -914,6 +914,9 @@ class MainWindow(QtWidgets.QWidget):
             '__name__': '__main__',
             '__builtins__': __builtins__,
         }
+        self.logout.clear()
+        self.logout.setPlainText('Environment has been successfully refreshed')
+        QtCore.QTimer.singleShot(3000, self.logout.clear)
 
     #Сигнал для кнопки (на случай отдельного закрытия)
     def closeEvent(self, e):
