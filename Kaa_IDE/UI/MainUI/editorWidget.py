@@ -80,7 +80,8 @@ class EditorMain(QtWidgets.QPlainTextEdit):
     def __init__(self, parent):
         super().__init__(parent)
         # Point-note regex
-        self.pt_regex = QtCore.QRegularExpression(r'[^a-zA-Z]([a-zA-Z]+.*)\.$')
+        self.pt_regex1 = QtCore.QRegularExpression(r'[^a-zA-Z]([a-zA-Z]+.*)\.$')
+        self.pt_regex2 = QtCore.QRegularExpression(r'([a-zA-Z]+.*)\.$')
         # Таймер для комплиттера
         self.compl_timer = QtCore.QTimer()
         self.compl_timer.setSingleShot(True)
@@ -548,13 +549,19 @@ class EditorMain(QtWidgets.QPlainTextEdit):
     #Методы для автоматических операций (одиночные клавиши)
     # Точечная нотация
     def point_note(self):
-        regex = self.pt_regex
+        regex1 = self.pt_regex1
+        regex2 = self.pt_regex2
+        result = ''
         cursor = QtGui.QTextCursor(self.textCursor())
         cursor.select(QtGui.QTextCursor.SelectionType.LineUnderCursor)
         text = cursor.selectedText()
 
-        m = regex.match(text)
-        result = m.captured(1)
+        m = regex1.match(text)
+        if m.hasMatch():
+            result = m.captured(1)
+        else:
+            m = regex2.match(text)
+            result = m.captured(1)
 
         self.pointNote.emit(result)
         # print('Нажата точка', result) # Тестилка
