@@ -135,6 +135,8 @@ class EditorMain(QtWidgets.QPlainTextEdit):
         self.removeTabId = self.grabShortcut(QtGui.QKeySequence('Shift+Tab'), QtCore.Qt.ShortcutContext.WidgetShortcut)
         # CTRL+R - сброс env для текущего таба (Editor)
         self.refreshTab = self.grabShortcut(QtGui.QKeySequence('Ctrl+R'), QtCore.Qt.ShortcutContext.WidgetShortcut)
+        #  CTRL+E - env to log
+        self.envToLog = self.grabShortcut(QtGui.QKeySequence('Ctrl+E'), QtCore.Qt.ShortcutContext.WidgetShortcut)
         #Сигналы
         self.cursorPositionChanged.connect(self.on_cursor_change)
         self.cursorPositionChanged.connect(lambda: self.complitter.hide())
@@ -455,6 +457,9 @@ class EditorMain(QtWidgets.QPlainTextEdit):
                     return True
                 elif e.shortcutId() == self.refreshTab:
                     self.envRefresh.emit()
+                    return True
+                elif e.shortcutId() == self.envToLog:
+                    self.getEnv.emit()
                     return True
             case _:
                 return super().event(e)
