@@ -920,7 +920,7 @@ class MainWindow(QtWidgets.QWidget):
             return
         # Проверяем через eval
         if text.split('.')[0] in self.global_env:
-            compl_obj = eval(text)
+            # compl_obj = eval(text)
             # print(dir(compl_obj))
             return
 
