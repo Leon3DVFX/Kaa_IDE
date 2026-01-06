@@ -911,11 +911,10 @@ class MainWindow(QtWidgets.QWidget):
         }
     # Разбор точечной нотации + смена моделей для комплиттера
     def point_note_complitter(self, text):
-        if text.endswith(')'):
+        if text.endswith((')','.')):
             return
 
-        # if text.split('.')[0] in self.global_env:
-        #     print('Да')
+        # print(globals()[text].__dict__)
 
     # Получение env в виде текста в Logout
     def get_env(self):
