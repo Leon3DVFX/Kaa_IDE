@@ -923,6 +923,7 @@ class MainWindow(QtWidgets.QWidget):
         if res_str == '':
             message = 'Environment is clear'
             self.logout.setPlainText(message)
+            QtCore.QTimer.singleShot(1500, self.logout.clear)
         else:
             self.logout.setPlainText(res_str)
 
@@ -934,7 +935,7 @@ class MainWindow(QtWidgets.QWidget):
         }
         self.logout.clear()
         self.logout.setPlainText('Environment has been successfully refreshed')
-        QtCore.QTimer.singleShot(3000, self.logout.clear)
+        QtCore.QTimer.singleShot(1500, self.logout.clear)
 
     #Сигнал для кнопки (на случай отдельного закрытия)
     def closeEvent(self, e):
