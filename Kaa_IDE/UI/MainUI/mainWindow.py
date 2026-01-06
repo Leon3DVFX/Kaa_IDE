@@ -914,8 +914,8 @@ class MainWindow(QtWidgets.QWidget):
         if text.endswith(')'):
             return
 
-        if text.split('.')[0] in self.global_env:
-            # print('Да')
+        # if text.split('.')[0] in self.global_env:
+        #     print('Да')
 
     # Получение env в виде текста в Logout
     def get_env(self):
