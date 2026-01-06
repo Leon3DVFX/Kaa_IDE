@@ -909,12 +909,20 @@ class MainWindow(QtWidgets.QWidget):
             '__name__': '__main__',
             '__builtins__': __builtins__,
         }
+
     # Разбор точечной нотации + смена моделей для комплиттера
     def point_note_complitter(self, text):
-        if text.endswith((')','.')):
+        if text.endswith((')', '.')):
             return
-
-        # print(globals()[text].__dict__)
+        # Проверяем Env
+        if text in self.global_env:
+            # print('Объект из env\n', dir(self.global_env.get(text)))
+            return
+        # Проверяем через eval
+        if text.split('.')[0] in self.global_env:
+            compl_obj = eval(text)
+            # print(dir(compl_obj))
+            return
 
     # Получение env в виде текста в Logout
     def get_env(self):
