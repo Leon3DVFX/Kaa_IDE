@@ -168,7 +168,7 @@ class EditorMain(QtWidgets.QPlainTextEdit):
         btn.setCheckable(True)
         btn.setChecked(True)
         btn.state = 'activate'
-        btn.effect.setOpacity(0.75)
+        btn.effect.setOpacity(0.3)
         btn.setToolTip('Show/Hide\nBlock Lines')
 
         x = self.viewport().width() - 2 * btn.width() - 2
@@ -182,7 +182,7 @@ class EditorMain(QtWidgets.QPlainTextEdit):
                         hovered=r'line_area_icons\env_hovered.png',
                         active=r'line_area_icons\env_active.png', sizeX=39, sizeY=24)
 
-        btn.effect.setOpacity(0.75)
+        btn.effect.setOpacity(0.3)
         btn.setToolTip('Environment Info')
 
         x = self.viewport().width() - 2 * self.show_hide_lines_btn.width() - btn.width() - 2
