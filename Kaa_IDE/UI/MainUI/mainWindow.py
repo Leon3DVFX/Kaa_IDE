@@ -900,6 +900,7 @@ class MainWindow(QtWidgets.QWidget):
         self.editor.runCodeSignal.connect(self.run_code)
         self.editor.envRefresh.connect(self.env_refresh)
         self.editor.getEnv.connect(self.get_env)
+        self.editor.pointNote.connect(self.point_note_complitter)
         self.editor_main.editorFontChanged.connect(self.logoutFontChange)
         self.editor.setFocus()
         self.setMouseTracking(True)
@@ -908,7 +909,15 @@ class MainWindow(QtWidgets.QWidget):
             '__name__': '__main__',
             '__builtins__': __builtins__,
         }
-    # Получение env (заготовка под вызов виджета)
+    # Разбор точечной нотации + смена моделей для комплиттера
+    def point_note_complitter(self, text):
+        if text.endswith(')'):
+            return
+
+        if text.split('.')[0] in self.global_env:
+            # print('Да')
+
+    # Получение env в виде текста в Logout
     def get_env(self):
         self.logout.clear()
         gl_dict = self.global_env
