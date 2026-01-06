@@ -73,10 +73,14 @@ class EditorMain(QtWidgets.QPlainTextEdit):
     envRefresh = QtCore.Signal()
     # Сигнал на получение env
     getEnv = QtCore.Signal()
+    # Сигнал для передачи точечной нотации
+    pointNote = QtCore.Signal(str)
 
     #Инициализация редактора текста
     def __init__(self, parent):
         super().__init__(parent)
+        # Point-note regex
+        self.pt_regex = QtCore.QRegularExpression(r'[^a-zA-Z]([a-zA-Z]+.*)\.$')
         # Таймер для комплиттера
         self.compl_timer = QtCore.QTimer()
         self.compl_timer.setSingleShot(True)
@@ -535,10 +539,26 @@ class EditorMain(QtWidgets.QPlainTextEdit):
                         self.move_to_bookmark(direction='down')
                     else:
                         return super().keyPressEvent(e)
+            case QtCore.Qt.Key.Key_Period:
+                super().keyPressEvent(e)
+                self.point_note()
             case _:
                 return super().keyPressEvent(e)
 
     #Методы для автоматических операций (одиночные клавиши)
+    # Точечная нотация
+    def point_note(self):
+        regex = self.pt_regex
+        cursor = QtGui.QTextCursor(self.textCursor())
+        cursor.select(QtGui.QTextCursor.SelectionType.LineUnderCursor)
+        text = cursor.selectedText()
+
+        m = regex.match(text)
+        result = m.captured(1)
+
+        self.pointNote.emit(result)
+        # print('Нажата точка', result) # Тестилка
+
     #Smart-отступы для ввода (Enter-Return)
     def enterKey(self):
         spacer = ''
