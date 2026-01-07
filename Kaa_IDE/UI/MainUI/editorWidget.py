@@ -549,19 +549,34 @@ class EditorMain(QtWidgets.QPlainTextEdit):
     #Методы для автоматических операций (одиночные клавиши)
     # Точечная нотация
     def point_note(self):
-        regex1 = self.pt_regex1
-        regex2 = self.pt_regex2
         result = ''
         cursor = QtGui.QTextCursor(self.textCursor())
-        cursor.select(QtGui.QTextCursor.SelectionType.LineUnderCursor)
-        text = cursor.selectedText()
+        pattern = '()=, '
+        # 1 - Смещаемся на точку
+        cursor.movePosition(QtGui.QTextCursor.MoveOperation.Left)
+        # 2 - Проверяем не в начале ли блока
+        if cursor.atBlockStart():
+            return
 
-        m = regex1.match(text)
-        if m.hasMatch():
-            result = m.captured(1)
-        else:
-            m = regex2.match(text)
-            result = m.captured(1)
+        # 3 - двигаем с выделением
+        while True:
+            cursor.movePosition(QtGui.QTextCursor.MoveOperation.Left,
+                                QtGui.QTextCursor.MoveMode.KeepAnchor)
+            if cursor.atBlockStart():
+                break
+
+            txt = cursor.selectedText()
+
+            if txt.startswith(tuple(pattern)):
+                cursor.movePosition(QtGui.QTextCursor.MoveOperation.Right,
+                                    QtGui.QTextCursor.MoveMode.KeepAnchor)
+                break
+
+        result = cursor.selectedText()
+        if result.startswith('.'):
+            result = ''
+        elif result.startswith('('):
+            result = result[1:]
 
         self.pointNote.emit(result)
         # print('Нажата точка', result) # Тестилка
