@@ -964,11 +964,9 @@ class MainWindow(QtWidgets.QWidget):
             elem2.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
 
             self.editor.complitter.base_model.appendRow([elem1, elem2])
-            self.editor.complitter.resizeColumnToContents(0)
-            self.editor.complitter.resizeColumnToContents(1)
 
         self.editor.complitter.proxy_model.setFilterRegularExpression("")
-        self.editor.complitter.sortByColumn(0,QtCore.Qt.SortOrder.AscendingOrder)
+        self.editor.complitter.sortByColumn(0, QtCore.Qt.SortOrder.AscendingOrder)
         self.editor.on_complitter_show()
 
     # Получение env в виде текста в Logout
