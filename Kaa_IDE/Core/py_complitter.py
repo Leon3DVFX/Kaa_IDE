@@ -72,7 +72,7 @@ class CompleterTableView(QtWidgets.QTableView):
         # popup
         self.setWindowFlags(QtCore.Qt.WindowType.Tool |
                             QtCore.Qt.WindowType.FramelessWindowHint)
-        self.setMinimumWidth(380)
+        self.setMinimumWidth(500)
         self.setMaximumHeight(240)
         self.setItemDelegate(CombinedDelegate(self))
         #Авто-ширина столбцов
