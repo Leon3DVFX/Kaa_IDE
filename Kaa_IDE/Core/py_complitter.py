@@ -30,6 +30,7 @@ class ItemModel(QtGui.QStandardItemModel):
         # Дополнительные иконки
         self.obj_icon = iconLoader(r'complitter_icons\obj_icon.png')
         self.class_icon = iconLoader(r'complitter_icons\class_icon.png')
+        self.c_class_icon = iconLoader(r'complitter_icons\c_class_icon.png')
         self.f_icon = iconLoader(r'complitter_icons\f_icon.png')
 
     def append_to_tab(self, j_type, icon):
