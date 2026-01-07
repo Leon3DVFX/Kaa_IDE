@@ -967,6 +967,7 @@ class MainWindow(QtWidgets.QWidget):
 
         self.editor.complitter.proxy_model.setFilterRegularExpression("")
         self.editor.complitter.sortByColumn(0, QtCore.Qt.SortOrder.AscendingOrder)
+        self.editor.complitter.setMinimumHeight(200)
         self.editor.on_complitter_show()
 
     # Получение env в виде текста в Logout
