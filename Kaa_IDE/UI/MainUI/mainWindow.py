@@ -958,10 +958,18 @@ class MainWindow(QtWidgets.QWidget):
             elem1 = QtGui.QStandardItem(name)
             elem1.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignVCenter)
             elem1.setForeground(QtGui.QColor('#D5D5D5'))
-            elem1.setIcon(self.editor.complitter.base_model.mod_icon)
-
             elem2 = QtGui.QStandardItem(kind)
             elem2.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
+
+            if kind == "builtins":
+                elem1.setIcon(self.editor.complitter.base_model.b_icon)
+            elif kind == "functions":
+                elem1.setIcon(self.editor.complitter.base_model.b_icon)
+            elif kind == "methods":
+                elem1.setIcon(self.editor.complitter.base_model.b_icon)
+            elif kind == "class":
+                elem1.setIcon(self.editor.complitter.base_model.class_icon)
+                elem2.setText(str(type(val)))
 
             self.editor.complitter.base_model.appendRow([elem1, elem2])
 
