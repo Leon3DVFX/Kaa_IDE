@@ -480,15 +480,19 @@ class EditorMain(QtWidgets.QPlainTextEdit):
             case QtCore.Qt.Key.Key_Return:
                 if self.complitter.isVisible():  # Учет комплиттера
                     self.on_complite()
+                    self.complitter.rebuild_base()
                 else:
                     self.enterKey()
+                    self.complitter.rebuild_base()
                     self.compl_timer.stop()  # Отключаем вывод комплиттера при явном Enter
                 e.accept()
             case QtCore.Qt.Key.Key_Enter:
                 if self.complitter.isVisible():  # Учет комплиттера
                     self.on_complite()
+                    self.complitter.rebuild_base()
                 else:
                     self.enterKey()
+                    self.complitter.rebuild_base()
                     self.compl_timer.stop()  # Отключаем вывод комплиттера при явном Enter
                 e.accept()
             case QtCore.Qt.Key.Key_Apostrophe:
@@ -571,7 +575,7 @@ class EditorMain(QtWidgets.QPlainTextEdit):
                 cursor.movePosition(QtGui.QTextCursor.MoveOperation.Right,
                                     QtGui.QTextCursor.MoveMode.KeepAnchor)
                 break
-
+        # 4 - корректируем результат
         result = cursor.selectedText()
         if result.startswith('.'):
             result = ''
