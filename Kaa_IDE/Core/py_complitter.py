@@ -8,6 +8,11 @@ class ItemModel(QtGui.QStandardItemModel):
         super().__init__(parent)
         self.elements = jsonLoader('python_keyword.json')
         self.setColumnCount(2)
+        elem1 = QtGui.QStandardItem('__dummy__')
+        elem1.setFlags(QtCore.Qt.ItemFlag.NoItemFlags)
+        elem2 = QtGui.QStandardItem('hidden')
+        elem2.setFlags(QtCore.Qt.ItemFlag.NoItemFlags)
+        self.appendRow([elem1,elem2])
 
         self.k_icon = iconLoader(r'complitter_icons\keywords_icon.png')
         self.append_to_tab("keywords", self.k_icon)
@@ -28,24 +33,24 @@ class ItemModel(QtGui.QStandardItemModel):
 
     def append_to_tab(self, j_type, icon):
         w_list = self.elements.get(j_type, [])
-        COLORS = {
-            "keywords": "#cb8964",
-            "builtins": "#a7a7e8",
-            "modules": "#e0d57b",
-            "magic": "#e03792"
-        }
+
         for e in w_list:
             elem1 = QtGui.QStandardItem()
             elem1.setText(e)
             elem1.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignVCenter)
             elem1.setIcon(icon)
-            elem1.setForeground(QtGui.QColor(COLORS[j_type]))
+            elem1.setForeground(QtGui.QColor('#D5D5D5'))
 
             elem2 = QtGui.QStandardItem()
             elem2.setText(j_type)
             elem2.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
 
             self.appendRow([elem1, elem2])
+
+    def silent_clean(self):
+        # начинаем с последней строки и идём к 1 (не трогаем 0)
+        for row in reversed(range(1, self.rowCount())):
+            self.takeRow(row)
 
 
 class CompleterTableView(QtWidgets.QTableView):
@@ -58,6 +63,7 @@ class CompleterTableView(QtWidgets.QTableView):
         self.proxy_model.setSourceModel(self.base_model)
         self.proxy_model.setFilterCaseSensitivity(QtCore.Qt.CaseSensitivity.CaseInsensitive)
         self.setModel(self.proxy_model)
+        self.setRowHidden(0,True)
         # ВАЖНО! Popup не захватывает фокус ввода
         self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         # Общий шрифт
@@ -94,9 +100,10 @@ class CompleterTableView(QtWidgets.QTableView):
         self.classes = set()
         self.imports = set()
         self.editor.document().blockCountChanged.connect(self.on_var)
+
     # Сброс ПУ
     def rebuild_base(self):
-        self.base_model.clear()
+        self.base_model.silent_clean()
         self.base_model.append_to_tab("builtins", self.base_model.b_icon)
         self.base_model.append_to_tab("keywords", self.base_model.k_icon)
         self.on_var()
@@ -154,7 +161,7 @@ class CompleterTableView(QtWidgets.QTableView):
                 elem1 = QtGui.QStandardItem()
                 elem1.setText(e)
                 elem1.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignVCenter)
-                elem1.setForeground(QtGui.QColor('#D489FF'))
+                elem1.setForeground(QtGui.QColor('#D5D5D5'))
                 elem1.setIcon(self.base_model.f_icon)
 
                 elem2 = QtGui.QStandardItem()
@@ -171,7 +178,7 @@ class CompleterTableView(QtWidgets.QTableView):
                 elem1 = QtGui.QStandardItem()
                 elem1.setText(e)
                 elem1.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignVCenter)
-                elem1.setForeground(QtGui.QColor('#EE8133'))
+                elem1.setForeground(QtGui.QColor('#D5D5D5'))
                 elem1.setIcon(self.base_model.class_icon)
 
                 elem2 = QtGui.QStandardItem()
@@ -188,7 +195,7 @@ class CompleterTableView(QtWidgets.QTableView):
                 elem1 = QtGui.QStandardItem()
                 elem1.setText(e)
                 elem1.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignVCenter)
-                elem1.setForeground(QtGui.QColor('#E0D57B'))
+                elem1.setForeground(QtGui.QColor('#D5D5D5'))
                 elem1.setIcon(self.base_model.mod_icon)
 
                 elem2 = QtGui.QStandardItem()
