@@ -8,9 +8,10 @@ class ItemModel(QtGui.QStandardItemModel):
         super().__init__(parent)
         self.elements = jsonLoader('python_keyword.json')
         self.setColumnCount(2)
-        elem1 = QtGui.QStandardItem('__dummy__')
+        # Нулевой компонент не для удаления
+        elem1 = QtGui.QStandardItem('__doc__')
         elem1.setFlags(QtCore.Qt.ItemFlag.NoItemFlags)
-        elem2 = QtGui.QStandardItem('hidden')
+        elem2 = QtGui.QStandardItem('doc string')
         elem2.setFlags(QtCore.Qt.ItemFlag.NoItemFlags)
         self.appendRow([elem1,elem2])
 
@@ -52,7 +53,7 @@ class ItemModel(QtGui.QStandardItemModel):
         for row in reversed(range(1, self.rowCount())):
             self.takeRow(row)
 
-
+# Представление в виде таблицы
 class CompleterTableView(QtWidgets.QTableView):
     def __init__(self, parent=None):
         super().__init__(parent)
