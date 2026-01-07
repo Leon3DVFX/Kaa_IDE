@@ -94,6 +94,12 @@ class CompleterTableView(QtWidgets.QTableView):
         self.classes = set()
         self.imports = set()
         self.editor.document().blockCountChanged.connect(self.on_var)
+    # Сброс ПУ
+    def rebuild_base(self):
+        self.base_model.clear()
+        self.base_model.append_to_tab("builtins", self.base_model.b_icon)
+        self.base_model.append_to_tab("keywords", self.base_model.k_icon)
+        self.on_var()
 
     def on_var(self):
         self.vars_f.vars.clear()
