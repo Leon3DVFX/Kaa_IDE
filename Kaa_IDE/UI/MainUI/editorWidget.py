@@ -112,7 +112,7 @@ class EditorMain(QtWidgets.QPlainTextEdit):
         self.start_complete = 0
         self.end_complete = 0
         self.complitter.hide()
-        self.document().contentsChange.connect(self.on_contents_change)
+        self.document().contentsChange.connect(self.new_contents_change)
         self.complitter.activated.connect(self.on_complite)
         # Анализатор блочности
         self.block_analyzer = BlockAnalyzer(self.document())
@@ -1025,56 +1025,41 @@ class EditorMain(QtWidgets.QPlainTextEdit):
     #Обработчики сигналов
     def on_cursor_change(self):
         self.ensureCursorVisible()
-
-    # Расчет слова для комплиттера (отклик на изменение)
-    def on_contents_change(self, cursor_pos, deleted, created):
+    # Переделываем
+    def new_contents_change(self, cursor_pos, deleted, created):
         self.compl_timer.stop()
         self.complitter.hide()
 
         if deleted > 0 or created > 10:
             return
 
-        group_1 = r',: [{('
-        group_2 = r',]})'
+        group = tuple('().{}[] ,')
 
-        cursor = self.textCursor()
-        cursor.select(QtGui.QTextCursor.SelectionType.WordUnderCursor)
-        text = cursor.selectedText()
-        start_pos = cursor_pos
-        # text.startswith(group_2)
-        # print(text) # Тестилка
+        cursor = QtGui.QTextCursor(self.textCursor())
+        txt = ''
 
-        if text.startswith(tuple(group_2)):
-            doc = self.document()
-            char_count = 0
+        while True:
+            if cursor.atBlockStart():
+                break
 
-            while True:
-                char_count += 1
-                if start_pos == 0:
-                    break
-                if start_pos - char_count == 0:
-                    break
+            cursor.movePosition(QtGui.QTextCursor.MoveOperation.Left,
+                                QtGui.QTextCursor.MoveMode.KeepAnchor)
 
-                cursor.setPosition(start_pos - char_count)
-                char = doc.characterAt(start_pos - char_count)
+            if cursor.selectedText().startswith(group) or cursor.atBlockStart():
+                txt = cursor.selectedText()[1:]
+                break
 
-                if char in group_1:
-                    break
-
-            cursor.setPosition(start_pos - char_count + 1)
-            cursor.setPosition(self.textCursor().position(), QtGui.QTextCursor.MoveMode.KeepAnchor)
-            text = cursor.selectedText()
-
-        if len(text) > 0:
-            self.complitter.filter_proxy(text)
+        if len(txt) > 0:
+            self.complitter.filter_proxy(txt)
             self.complitter.sortByColumn(0, QtCore.Qt.SortOrder.DescendingOrder)
             self.compl_timer.start()
 
-        self.start_complete = cursor.selectionStart()
+        if cursor.atBlockStart():
+            self.start_complete = cursor.selectionStart()
+        else:
+            self.start_complete = cursor.selectionStart() + 1
         self.end_complete = cursor.selectionEnd()
-
         cursor.clearSelection()
-        # print(text) # Тестилка
 
     # Отображение комплиттера по таймеру
     def on_complitter_show(self):
