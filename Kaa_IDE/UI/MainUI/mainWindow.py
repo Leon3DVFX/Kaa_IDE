@@ -961,6 +961,7 @@ class MainWindow(QtWidgets.QWidget):
             elem2 = QtGui.QStandardItem(kind)
             elem2.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
 
+
             if kind == "builtins":
                 elem1.setIcon(self.editor.complitter.base_model.b_icon)
             elif kind == "functions":
@@ -969,7 +970,7 @@ class MainWindow(QtWidgets.QWidget):
                 elem1.setIcon(self.editor.complitter.base_model.b_icon)
             elif kind == "class":
                 elem1.setIcon(self.editor.complitter.base_model.class_icon)
-                elem2.setText(str(type(val)))
+                elem2.setText(kind)
 
             self.editor.complitter.base_model.appendRow([elem1, elem2])
 
