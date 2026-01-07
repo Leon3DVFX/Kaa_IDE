@@ -32,6 +32,8 @@ class ItemModel(QtGui.QStandardItemModel):
         self.class_icon = iconLoader(r'complitter_icons\class_icon.png')
         self.c_class_icon = iconLoader(r'complitter_icons\c_class_icon.png')
         self.f_icon = iconLoader(r'complitter_icons\f_icon.png')
+        self.m_icon = iconLoader(r'complitter_icons\m_icon.png')
+        self.const_icon = iconLoader(r'complitter_icons\const_icon.png')
 
     def append_to_tab(self, j_type, icon):
         w_list = self.elements.get(j_type, [])
