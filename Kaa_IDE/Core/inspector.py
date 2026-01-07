@@ -11,24 +11,24 @@ def inspect_attr(owner, name):
         kind = "class"
 
     elif inspect.isfunction(val):
-        kind = "function"
+        kind = "functions"
 
     elif inspect.ismethod(val):
-        kind = "method"
+        kind = "methods"
 
     elif inspect.ismethoddescriptor(val):
-        kind = "method"
+        kind = "methods"
 
     elif inspect.isbuiltin(val):
-        kind = "builtin"
+        kind = "builtins"
 
     elif isinstance(val, property):
         kind = "property"
 
     elif hasattr(val, '__get__'):   # дескрипторы
-        kind = "descriptor"
+        kind = "descriptors"
 
     else:
-        kind = "variable"
+        kind = "variables"
 
     return val, kind
