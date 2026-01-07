@@ -1104,7 +1104,7 @@ class EditorMain(QtWidgets.QPlainTextEdit):
         text = index.data()  # текст выбранного пункта
         meta = index.sibling(index.row(), 1).data()  # текст мета (1ой колонки) для анализа поведения курсора
 
-        if meta == "builtins" or meta == "def function":
+        if meta == "builtins" or meta == "def function" or meta == "methods" or meta == "functions":
             cursor = self.textCursor()
             cursor.setPosition(self.start_complete)
             cursor.setPosition(self.end_complete, QtGui.QTextCursor.MoveMode.KeepAnchor)
