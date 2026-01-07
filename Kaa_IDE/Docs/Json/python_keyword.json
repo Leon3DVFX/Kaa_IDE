@@ -6,7 +6,7 @@
         "nonlocal", "not", "or", "pass", "raise", "return", "try", "while", "with", "yield",
         "match", "case"
     ],
-    "builtins": [
+    "builtin": [
         "abs", "all", "any", "ascii", "bin", "bool", "breakpoint", "bytearray", "bytes",
         "callable", "chr", "classmethod", "compile", "complex", "delattr", "dict",
         "dir", "divmod", "enumerate", "eval", "exec", "filter", "float",
