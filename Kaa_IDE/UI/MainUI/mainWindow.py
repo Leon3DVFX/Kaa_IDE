@@ -946,13 +946,30 @@ class MainWindow(QtWidgets.QWidget):
                 continue
             sym.append((name, kind, val))
 
-        print(sym)
+        # print(sym)
         # attrs в модель комплитера
         self.rebuild_complitter(sym)
 
     def rebuild_complitter(self, sym):
         # 1 - Чистка базовой модели
-        self.editor.complitter.base_model.clear()
+        self.editor.complitter.base_model.silent_clean()
+
+        for name, kind, val in sym:
+            elem1 = QtGui.QStandardItem(name)
+            elem1.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignVCenter)
+            elem1.setForeground(QtGui.QColor('#D5D5D5'))
+            elem1.setIcon(self.editor.complitter.base_model.mod_icon)
+
+            elem2 = QtGui.QStandardItem(kind)
+            elem2.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
+
+            self.editor.complitter.base_model.appendRow([elem1, elem2])
+            self.editor.complitter.resizeColumnToContents(0)
+            self.editor.complitter.resizeColumnToContents(1)
+
+        self.editor.complitter.proxy_model.setFilterRegularExpression("")
+        self.editor.complitter.sortByColumn(0,QtCore.Qt.SortOrder.AscendingOrder)
+        self.editor.on_complitter_show()
 
     # Получение env в виде текста в Logout
     def get_env(self):
