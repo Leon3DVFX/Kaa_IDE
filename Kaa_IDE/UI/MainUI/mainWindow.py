@@ -7,6 +7,7 @@ from Kaa_IDE.UI.MainUI.logWidget import Logout
 
 from Kaa_IDE.Core.loaders import iconLoader, pixmapLoader, cssLoader
 from Kaa_IDE.Core.temp import TempSystem
+from Kaa_IDE.Core.inspector import inspect_attr
 from Kaa_IDE.UI.Styles.tab_bar import css as tab_css
 from Kaa_IDE.UI.MainUI.internetBrowser import BrowserWindow
 
@@ -912,11 +913,12 @@ class MainWindow(QtWidgets.QWidget):
 
     # Разбор точечной нотации + смена моделей для комплиттера
     def point_note_complitter(self, text):
-        if not text or text.endswith((')',)):
+        if not text or text.endswith((')', ']', '"', "'")):
             return
 
         parts = text.split('.')
         root_name = parts[0]
+        # print(text)
         # 1 есть ли корень в env
         root = self.global_env.get(root_name)
         if root is None:
@@ -928,13 +930,29 @@ class MainWindow(QtWidgets.QWidget):
                 obj = getattr(obj, part)
         except Exception:
             return
-        # 3 obj — валидный объект, вот он для комплитера
+        # 3 obj — валидный объект
         attrs = set(dir(obj))
         if hasattr(obj, "__dict__"):
-            attrs |= obj.__dict__
+            attrs |= obj.__dict__.keys()
 
-        # print(attrs)
+        sym = []
+
+        for name in attrs:
+            if name.startswith('_'):
+                continue
+
+            val, kind = inspect_attr(obj, name)
+            if val is None:
+                continue
+            sym.append((name, kind, val))
+
+        print(sym)
         # attrs в модель комплитера
+        self.rebuild_complitter(sym)
+
+    def rebuild_complitter(self, sym):
+        # 1 - Чистка базовой модели
+        self.editor.complitter.base_model.clear()
 
     # Получение env в виде текста в Logout
     def get_env(self):
