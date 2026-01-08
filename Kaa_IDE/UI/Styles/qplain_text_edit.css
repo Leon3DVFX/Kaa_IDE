@@ -1,0 +1,6 @@
+QPlainTextEdit {
+    color: #D5D5D5; /* Цвет самого текста */
+    background-color: #1E1F22;
+    selection-background-color: #2535B8DF;  /* Цвет выделения */
+    selection-color: #FFFFFF;              /* Цвет текста в выделении */
+}
