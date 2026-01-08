@@ -473,6 +473,7 @@ class EditorMain(QtWidgets.QPlainTextEdit):
 
     # Перехват одиночных нажатий
     def keyPressEvent(self, e):
+        # Тестовая проверка
         match e.key():
             case QtCore.Qt.Key.Key_Space:
                 self.complitter.rebuild_base()
