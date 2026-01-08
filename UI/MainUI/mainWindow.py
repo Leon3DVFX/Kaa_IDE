@@ -961,7 +961,6 @@ class MainWindow(QtWidgets.QWidget):
             elem2 = QtGui.QStandardItem(kind)
             elem2.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
 
-
             if kind == "builtins":
                 elem1.setIcon(self.editor.complitter.base_model.f_icon)
             elif kind == "functions":
