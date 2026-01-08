@@ -474,9 +474,9 @@ class EditorMain(QtWidgets.QPlainTextEdit):
     #Перехват одиночных нажатий
     def keyPressEvent(self, e):
         match e.key():
-            case QtCore.Qt.Key.Key_Backspace:
-                self.complitter.rebuild_base()
-                super().keyPressEvent(e)
+            # case QtCore.Qt.Key.Key_Backspace:
+            #     self.complitter.rebuild_base()
+            #     super().keyPressEvent(e)
             case QtCore.Qt.Key.Key_Space:
                 self.complitter.rebuild_base()
                 super().keyPressEvent(e)
