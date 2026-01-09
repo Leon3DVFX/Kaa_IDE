@@ -4,6 +4,7 @@ from Kaa_IDE.Core.loaders import pixmapLoader, cssLoader, version
 from Kaa_IDE.Core.py_complitter import CompleterTableView
 from Kaa_IDE.Core.highliter import EditorHighlighter
 from Kaa_IDE.Core.block_analyzer import BlockAnalyzer
+from Kaa_IDE.Core.dcc_functions import is_maya, is_houdini, is_max
 
 
 #Обертка-виджет
@@ -475,6 +476,9 @@ class EditorMain(QtWidgets.QPlainTextEdit):
     def keyPressEvent(self, e):
         # Тестовая проверка
         match e.key():
+            case QtCore.Qt.Key.Key_F1:
+                print('F1 Pressed')
+                e.accept()
             case QtCore.Qt.Key.Key_Space:
                 self.complitter.rebuild_base()
                 super().keyPressEvent(e)

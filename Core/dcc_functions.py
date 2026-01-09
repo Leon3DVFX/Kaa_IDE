@@ -1,4 +1,3 @@
-
 # Проверки на соответствующие API
 # Autodesk Maya
 def is_maya():
