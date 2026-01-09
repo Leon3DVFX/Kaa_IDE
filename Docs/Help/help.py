@@ -7,6 +7,8 @@ class HelpViewer(QtWebEngineWidgets.QWebEngineView):
         super().__init__(parent)
         # Удаление при закрытии
         self.setAttribute(QtCore.Qt.WidgetAttribute.WA_DeleteOnClose)
+        self.setFixedWidth(600)
+        self.setFixedHeight(700)
 
         # Убрать контекстное меню
         self.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.NoContextMenu)
