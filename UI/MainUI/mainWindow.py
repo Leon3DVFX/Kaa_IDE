@@ -9,7 +9,6 @@ from Kaa_IDE.Core.loaders import iconLoader, pixmapLoader, cssLoader
 from Kaa_IDE.Core.temp import TempSystem
 from Kaa_IDE.Core.inspector import inspect_attr
 from Kaa_IDE.UI.Styles.tab_bar import css as tab_css
-from Kaa_IDE.UI.MainUI.internetBrowser import BrowserWindow
 
 
 #Главная кнопка ("Зазывала" главного окна)
