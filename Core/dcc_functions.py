@@ -1,3 +1,5 @@
+import webbrowser
+
 # Проверки на соответствующие API
 # Autodesk Maya
 def is_maya():
@@ -20,3 +22,7 @@ def is_max():
         return True
     except ImportError:
         return False
+
+# Запуск обозревателя ПУ
+def run_webbrowser(url: str):
+    webbrowser.open(url)

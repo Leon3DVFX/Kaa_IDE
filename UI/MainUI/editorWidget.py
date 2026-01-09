@@ -4,7 +4,7 @@ from Kaa_IDE.Core.loaders import pixmapLoader, cssLoader, version
 from Kaa_IDE.Core.py_complitter import CompleterTableView
 from Kaa_IDE.Core.highliter import EditorHighlighter
 from Kaa_IDE.Core.block_analyzer import BlockAnalyzer
-from Kaa_IDE.Core.dcc_functions import is_maya, is_houdini, is_max
+from Kaa_IDE.Core.dcc_functions import is_maya, is_houdini, is_max, run_webbrowser
 
 
 #Обертка-виджет
@@ -477,7 +477,7 @@ class EditorMain(QtWidgets.QPlainTextEdit):
         # Тестовая проверка
         match e.key():
             case QtCore.Qt.Key.Key_F1:
-                print('F1 Pressed')
+                self.f1_operation()
                 e.accept()
             case QtCore.Qt.Key.Key_Space:
                 self.complitter.rebuild_base()
@@ -559,6 +559,23 @@ class EditorMain(QtWidgets.QPlainTextEdit):
                 return super().keyPressEvent(e)
 
     #Методы для автоматических операций (одиночные клавиши)
+    # Подсказка на f1
+    def f1_operation(self):
+        url = ''
+        if is_maya():
+            if self.textCursor().hasSelection():
+                url = r'https://help.autodesk.com/cloudhelp/2026/ENU/MAYA-API-REF/py_ref/index.html'
+            else:
+                url = r'https://help.autodesk.com/cloudhelp/2026/ENU/Maya-Tech-Docs/CommandsPython/'
+        elif is_houdini():
+            url = r'https://www.sidefx.com/docs/houdini/hom/hou/'
+        elif is_max():
+            url = r'https://help.autodesk.com/view/MAXDEV/2026/ENU/?guid=MAXDEV_Python_using_pymxs_html'
+        else:
+            url = r'https://github.com/Leon3DVFX'
+
+        run_webbrowser(url)
+
     # Точечная нотация
     def point_note(self):
         result = ''
@@ -1027,6 +1044,7 @@ class EditorMain(QtWidgets.QPlainTextEdit):
     #Обработчики сигналов
     def on_cursor_change(self):
         self.ensureCursorVisible()
+
     # Переделываем
     def new_contents_change(self, cursor_pos, deleted, created):
         self.compl_timer.stop()
