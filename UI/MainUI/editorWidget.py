@@ -1293,7 +1293,7 @@ class LineNumberArea(QtWidgets.QWidget):
                     start = block_id
                     self.folding_data.append([start, hiddens])
                     # print(self.folding_data)  # Тест
-            else:  # Bookmark по клику (плавая половина Line Number Area)
+            else:  # Bookmark по клику (правая половина Line Number Area)
                 cursor = self.editor.cursorForPosition(QtCore.QPoint(0, y))
                 block_id = cursor.block().blockNumber()
 

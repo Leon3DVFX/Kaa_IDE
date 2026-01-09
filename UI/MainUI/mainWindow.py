@@ -342,6 +342,7 @@ class KaaMDIWindow(QtWidgets.QMainWindow):
         slider.setRange(150, 255)
         slider.setValue(255)
         slider.valueChanged.connect(self.opacity_correct)
+        slider.setToolTip('Opacity Slider')
         return slider
 
     def opacity_correct(self, val):
