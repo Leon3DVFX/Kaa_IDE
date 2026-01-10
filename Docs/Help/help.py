@@ -6,7 +6,7 @@ class HelpWidget(QtWidgets.QWidget):
     def __init__(self, parent = None):
         super().__init__(parent)
 # Заголовок с кнопками
-class Header(QtWidgets.QWidget)
+class Header(QtWidgets.QWidget):
     def __init__(self, parent = None):
         super().__init__(parent)
 # Основной браузер для Help
