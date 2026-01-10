@@ -1,7 +1,15 @@
 from PySide6 import QtWidgets, QtCore, QtWebEngineWidgets
 import os
 
-
+# Общий виджет - обертка
+class HelpWidget(QtWidgets.QWidget):
+    def __init__(self, parent = None):
+        super().__init__(parent)
+# Заголовок с кнопками
+class Header(QtWidgets.QWidget)
+    def __init__(self, parent = None):
+        super().__init__(parent)
+# Основной браузер для Help
 class HelpViewer(QtWebEngineWidgets.QWebEngineView):
     def __init__(self, parent = None):
         super().__init__(parent)
