@@ -12,9 +12,10 @@ class HelpViewer(QtWebEngineWidgets.QWebEngineView):
 
         # Убрать контекстное меню
         self.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.NoContextMenu)
-
+        # Набор справок
         self.en_path = os.path.abspath(os.path.join('help_en', 'help_en.html'))
         self.ru_path = os.path.abspath(os.path.join('help_ru', 'help_ru.html'))
+        # Стартовая справки
         self.setUrl(QtCore.QUrl.fromLocalFile(self.ru_path))
 
 
