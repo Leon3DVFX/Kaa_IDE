@@ -2,6 +2,8 @@ from PySide6 import QtGui, QtCore
 from Kaa_IDE.Core.loaders import jsonLoader
 
 class EditorHighlighter(QtGui.QSyntaxHighlighter):
+    TRIPLE_SINGLE = 1
+    TRIPLE_DOUBLE = 2
     def __init__(self, doc):
         super().__init__(doc)
         #Загрузка опорного json
@@ -73,9 +75,8 @@ class EditorHighlighter(QtGui.QSyntaxHighlighter):
         self.activateCustomFunctions(text)
         # 3. Ключевые слова
         self.activateKeyword(text, pat_and_formats=self.key_pattern)
-        # 2. Строки
-        self.activateStrings(text)
-        # 1.Comments (самый верхний приоритет)
+
+        # 2.Comments (самый верхний приоритет)
         comment_pattern = self.comment_pattern
         comment_it = comment_pattern.globalMatch(text)
         while comment_it.hasNext():
@@ -83,6 +84,10 @@ class EditorHighlighter(QtGui.QSyntaxHighlighter):
             start = match.capturedStart()
             length = match.capturedLength()
             self.setFormat(start, length, self.commentFormat)
+
+        # 1. Строки - самый верхний приоритет
+        self.activateStrings(text)
+        self.activateMultiStringsOne(text)
 
     # Подсветка по ключевым словам
     def activateKeyword(self, text=None, pat_and_formats=None):
@@ -105,6 +110,10 @@ class EditorHighlighter(QtGui.QSyntaxHighlighter):
                 start = match.capturedStart()
                 length = match.capturedLength()
                 end = start + length
+
+                if text.strip().startswith('#'):
+                    continue
+
                 self.string_ranges.append((start, end))
                 self.setFormat(start, length, self.stringFormat)
 
@@ -128,6 +137,74 @@ class EditorHighlighter(QtGui.QSyntaxHighlighter):
                         in2_start = start + in2_match.capturedStart()
                         in2_length = in2_match.capturedLength()
                         self.setFormat(in2_start, in2_length, self.in_stringFormat)
+    # Поддержка подсветки мультистрок (''' и """)
+    def activateMultiStringsOne(self, text):
+        self.setCurrentBlockState(0)
+
+        text_len = len(text)
+        start = 0
+
+        def apply_multiline(end_seq, state):
+            end = text.find(end_seq, start + len(end_seq))
+            if end == -1:
+                self.setFormat(start, text_len - start, self.stringFormat)
+                self.setCurrentBlockState(state)
+                return True
+            else:
+                self.setFormat(start, end + len(end_seq) - start, self.stringFormat)
+                return end + len(end_seq)
+
+        # продолжение прошлого блока
+        if self.previousBlockState() == self.TRIPLE_SINGLE:
+            res = apply_multiline("'''", self.TRIPLE_SINGLE)
+            if res is True:
+                return
+            start = res
+
+        elif self.previousBlockState() == self.TRIPLE_DOUBLE:
+            res = apply_multiline('"""', self.TRIPLE_DOUBLE)
+            if res is True:
+                return
+            start = res
+
+        # новый блок
+        while True:
+            ss = text.find("'''", start)
+            dd = text.find('"""', start)
+
+            if ss == -1 and dd == -1:
+                break
+
+            if text.strip().startswith('#'):
+                break
+
+            # выбираем ближайший
+            if ss != -1 and (dd == -1 or ss < dd):
+                # есть префиксы r/f/rf/fr
+                prefix = 0
+                if ss >= 2 and text[ss - 2:ss] in {"rf", "fr"}:
+                    prefix = 2
+                elif ss >= 1 and text[ss - 1] in {"r", "f"}:
+                    prefix = 1
+
+                start = ss - prefix
+                res = apply_multiline("'''", self.TRIPLE_SINGLE)
+                if res is True:
+                    return
+                start = res
+
+            else:
+                prefix = 0
+                if dd >= 2 and text[dd - 2:dd] in {"rf", "fr"}:
+                    prefix = 2
+                elif dd >= 1 and text[dd - 1] in {"r", "f"}:
+                    prefix = 1
+
+                start = dd - prefix
+                res = apply_multiline('"""', self.TRIPLE_DOUBLE)
+                if res is True:
+                    return
+                start = res
 
     # Подсветка цифр (int-float)
     def activateNum(self, text):
