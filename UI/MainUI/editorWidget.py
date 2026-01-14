@@ -1463,7 +1463,9 @@ class SubButton(QtWidgets.QPushButton):
         self.effect.setOpacity(0.3)
         self.setGraphicsEffect(self.effect)
         self.opAnim = QtCore.QPropertyAnimation(self.effect, b'opacity')
-
+        # Стандартный курсор при наведении
+        cursor = QtGui.QCursor(QtCore.Qt.CursorShape.ArrowCursor)
+        self.setCursor(cursor)
         if self.isChecked():
             self.state = 'activate'
         else:
