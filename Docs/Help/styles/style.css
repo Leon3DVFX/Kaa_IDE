@@ -9,22 +9,31 @@ fieldset {
     border: 2px solid #4a90e2; /* синий цвет границы */
     background-color: #3a3a3a; /* чуть светлее фон */
     border-radius: 8px; /* скругленные углы */
-    margin: 10px;
-    padding: 10px;
+    margin: 20px;
+    padding: 15px;
 }
 
 fieldset legend {
     color: #4a90e2; /* синий цвет текста */
-    font-weight: bolder;
-    font-size: 1.2em;
-    font-style: italic;
-    border: #4a90e2 2px solid;
-    padding: 5px 10px;
-    border-radius: 5px;
+    font-weight: bolder;/* жирный шрифт */
+    font-size: 1.2em;/* немного больше обычного */
+    font-style: italic;/* курсив */
+    border: #4a90e2 2px solid;/* синий цвет рамки */
+    padding: 5px 10px;/* Отступы внутри легенды */
+    border-radius: 5px;/* скругленные углы */
     background-color: #2c2c2c; /* совпадает с фоном страницы */
+}
+
+nav ul {
+    padding-top: 0px;/* Убираем отступ сверху */
+    padding-left: 15px;/* Отступ слева для списка */
 }
 
 a {
     color: #4a90e2; /* синий цвет ссылок */
-    text-decoration: none; /* убрать подчеркивание */
+    text-decoration-line: underline; /* Подчеркивание текста */
+    text-decoration-style: solid;/* Стиль линии подчеркивания */
+    text-underline-offset: 3px;/* Расстояние между текстом и линией */
+    text-decoration-thickness: 1px;/* Толщина линии */
+
 }
