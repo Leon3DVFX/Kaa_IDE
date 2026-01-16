@@ -1,0 +1,30 @@
+html,body {
+    /* Общие стили для html и body */
+    background-color: #2c2c2c; /* тёмно-серый */
+    color: #dfdfdf; /* чтоб текст был виден */
+    font-family: 'JetBrains Mono';
+}
+
+fieldset {
+    border: 2px solid #4a90e2; /* синий цвет границы */
+    background-color: #3a3a3a; /* чуть светлее фон */
+    border-radius: 8px; /* скругленные углы */
+    margin: 10px;
+    padding: 10px;
+}
+
+fieldset legend {
+    color: #4a90e2; /* синий цвет текста */
+    font-weight: bolder;
+    font-size: 1.2em;
+    font-style: italic;
+    border: #4a90e2 2px solid;
+    padding: 5px 10px;
+    border-radius: 5px;
+    background-color: #2c2c2c; /* совпадает с фоном страницы */
+}
+
+a {
+    color: #4a90e2; /* синий цвет ссылок */
+    text-decoration: none; /* убрать подчеркивание */
+}
