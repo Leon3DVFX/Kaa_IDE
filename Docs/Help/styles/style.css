@@ -51,6 +51,11 @@ fieldset.item legend {
 nav ul {
     padding-top: 0px;/* Убираем отступ сверху */
     padding-left: 15px;/* Отступ слева для списка */
+    list-style-type: square; /* маркеры в виде точек */
+    padding-left: 20px;
+    color: #3295DB;
+    margin-top: 5px;
+    margin-bottom: 5px;
 }
 
 a {
@@ -68,4 +73,6 @@ p.basic {
     line-height: 1.5em; /* межстрочный интервал */
     text-align: justify; /* выравнивание по ширине */
     text-indent: 25px; /* отступ первой строки */
+    margin-top: 0px;
+    margin-bottom: 10px;
 }
