@@ -10,7 +10,7 @@ from Kaa_IDE.Core.dcc_functions import is_maya, is_houdini, is_max, run_webbrows
 #Обертка-виджет
 class Editor(QtWidgets.QWidget):
     editorFontChanged = QtCore.Signal(QtGui.QFont)
-
+    helpCall = QtCore.Signal()
     def __init__(self):
         super().__init__()
         self.box = QtWidgets.QVBoxLayout(self)
@@ -30,6 +30,7 @@ class Editor(QtWidgets.QWidget):
         self.line_info.label2.setFont(self.editor.font())
         self.line_info.label4.setFont(self.editor.font())
         self.setMouseTracking(True)
+        self.line_info.helpCall.connect(self.helpCall.emit)
 
     #Метод начальной установки шрифта
     def setInitialFont(self):
@@ -1550,6 +1551,7 @@ class SubButton(QtWidgets.QPushButton):
 
 # Виджет с общей информацией + системой навигации по тексту
 class LineInfo(QtWidgets.QWidget):
+    helpCall = QtCore.Signal()
     def __init__(self, parent=None):
         super().__init__(parent)
         self.editor = parent.editor
@@ -1612,12 +1614,15 @@ class LineInfo(QtWidgets.QWidget):
                                   active="help_activate.png",
                                   sizeX=25,
                                   sizeY=25)
-
+        self.help_btn.clicked.connect(self.helpCall)
         self.box.addWidget(self.help_btn, alignment=QtCore.Qt.AlignmentFlag.AlignCenter)
         # Авто обновление максимального числа блоков
         self.editor.document().blockCountChanged.connect(self.sb_max_changed)
         self.sb.editingFinished.connect(self.go_to_line)
 
+    # Вызов Help через сигнал от кнопки
+    def help_call(self):
+        self.helpCall.emit()
     # Активное изменение максимума в зависимости от кол-ва блоков
     def sb_max_changed(self, new_max):
         self.sb.setMaximum(new_max)

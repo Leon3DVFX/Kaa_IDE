@@ -310,6 +310,7 @@ class KaaMDIWindow(QtWidgets.QMainWindow):
         self.setMinimumWidth(550)
         self.setMinimumHeight(400)
         self.resize(400, 600)
+        self.help_counter = 0
         self.setWindowFlags(
             QtCore.Qt.WindowType.FramelessWindowHint |
             QtCore.Qt.WindowType.Tool
@@ -323,6 +324,12 @@ class KaaMDIWindow(QtWidgets.QMainWindow):
 
         self.tool_bar_opacity = self.create_tool_bar()
         self.addToolBar(QtCore.Qt.ToolBarArea.LeftToolBarArea, self.tool_bar_opacity)
+        self.mdi_central.helpCall.connect(self.on_help)
+
+    def on_help(self):
+        if self.help_counter > 0:
+            return
+        print('Запускаю Help')
 
     def create_tool_bar(self):
         tool_bar = QtWidgets.QToolBar(self)
@@ -359,12 +366,15 @@ class KaaMDIWindow(QtWidgets.QMainWindow):
 
 #MDI - оболочка
 class MDIArea(QtWidgets.QMdiArea):
+    helpCall = QtCore.Signal()
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self._font = QtGui.QFont('JetBrains Mono', 10)
         # Start layout
         self.startSubWindow = self.addSubWindow(MDISubWindow(self))
         self.startSubWindow.show()
+        self.startSubWindow.helpCall.connect(self.helpCall.emit)
         self.setViewMode(QtWidgets.QMdiArea.ViewMode.TabbedView)
         self.setFocusPolicy(QtCore.Qt.FocusPolicy.StrongFocus)
         self.setTabsMovable(True)
@@ -491,6 +501,7 @@ class MDIArea(QtWidgets.QMdiArea):
     # Создание нового таба
     def new_tab(self):
         new_win = MDISubWindow()
+        new_win.helpCall.connect(self.helpCall.emit)
         self.addSubWindow(new_win)
         new_win.showMaximized()
         self.setActiveSubWindow(new_win)
@@ -566,6 +577,8 @@ class MDIArea(QtWidgets.QMdiArea):
 
 #Вкладываемые главные окна
 class MDISubWindow(QtWidgets.QMdiSubWindow):
+    helpCall = QtCore.Signal()
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWidget(MainWindow(self))
@@ -601,6 +614,7 @@ class MDISubWindow(QtWidgets.QMdiSubWindow):
         self.color2.setAlpha(150)
         self.std_pen.setColor(self.color2)
         self.std_pen.setCapStyle(QtCore.Qt.PenCapStyle.RoundCap)
+        self.widget().helpCall.connect(self.helpCall.emit)
 
     def paintEvent(self, event):
         self.draw_border_lines()
@@ -871,6 +885,7 @@ class MDISubWindow(QtWidgets.QMdiSubWindow):
 #Главное окно редактора !!!КАК КОМПЛЕКТУЕМЫЙ ВИДЖЕТ!!!
 class MainWindow(QtWidgets.QWidget):
     closeSignal = QtCore.Signal()
+    helpCall = QtCore.Signal()
 
     #Инициализация главного окна (конструктор)
     def __init__(self, parent=None):
@@ -882,6 +897,7 @@ class MainWindow(QtWidgets.QWidget):
         self.editor_main = Editor()
         self.editor = self.editor_main.getEditor()  #Доступ к объ через обертку
         self.editor.setPlaceholderText('Enter Python code (Ctrl+Enter to run)')
+        self.editor_main.helpCall.connect(self.helpCall.emit)
 
         self.logout_main = Logout()
         self.logout = self.logout_main.getLogout()
