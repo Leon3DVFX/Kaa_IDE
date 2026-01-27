@@ -1606,6 +1606,14 @@ class LineInfo(QtWidgets.QWidget):
 
         self.box.addWidget(frame, alignment=QtCore.Qt.AlignmentFlag.AlignRight | QtCore.Qt.AlignmentFlag.AlignVCenter,
                            stretch=0)
+        # Кнопка для основного хэлпа программы
+        self.help_btn = SubButton(normal="help_normal.png",
+                                  hovered="help_hovered.png",
+                                  active="help_activate.png",
+                                  sizeX=25,
+                                  sizeY=25)
+
+        self.box.addWidget(self.help_btn, alignment=QtCore.Qt.AlignmentFlag.AlignCenter)
         # Авто обновление максимального числа блоков
         self.editor.document().blockCountChanged.connect(self.sb_max_changed)
         self.sb.editingFinished.connect(self.go_to_line)
