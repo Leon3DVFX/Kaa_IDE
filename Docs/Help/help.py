@@ -16,7 +16,7 @@ class HelpViewer(QtWebEngineWidgets.QWebEngineView):
         # Удаление при закрытии
         self.setAttribute(QtCore.Qt.WidgetAttribute.WA_DeleteOnClose)
         self.page().setBackgroundColor(QtCore.Qt.GlobalColor.transparent)
-        self.setFixedWidth(600)
+        self.setFixedWidth(800)
         self.setFixedHeight(700)
 
         # Убрать контекстное меню
