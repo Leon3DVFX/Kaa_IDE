@@ -1,32 +1,46 @@
 <html lang="en">
 <head>
-    <link rel="stylesheet" href="..\styles\style.css">
+    <link rel="stylesheet" href="../styles/style.css">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Help Document</title>
 </head>
 <body>
+    <!-- Help Information -->
     <fieldset class="fieldset-help">
         <legend>Kaa_IDE</legend>
-        <p class="basic">This is the help document for the application.<br>
-            Autor: Leon3DVFX<br>
+        <p>This is the help document for the application.<br>
+            Author: Leon3DVFX<br>
             License: MIT<br>
         </p>
     </fieldset>
+    <!-- Navigation -->
     <fieldset>
         <legend>Navigation</legend>
         <nav>
             <ul>
                 <li><a href="#main-program">Main Program</a></li>
-                <li><a href="#">Hotkeys</a></li>
-                <li><a href="#">Facilities</a></li>
-                <li><a href="#">Program Structure</a></li>
+                    <ul class="sub-menu">
+                        <li><a href="#main-program">General information</a></li>
+                        <li><a href="#general-scheme">General scheme</a></li>
+                        <li><a href="#main-components">Main components</a></li> 
+                    </ul>
+                <li><a href="#hotkeys">Hotkeys</a></li>
+                    <ul class="sub-menu">
+                        <li><a href="#general-hotkeys">General hotkeys</a></li>
+                        <li><a href="#text-editing-hotkeys">Text editing hotkeys</a></li>
+                    </ul>
+                <li><a href="#structure">Structure</a></li>
             </ul>
         </nav>
     </fieldset>
-    <img src="..\..\..\UI\Icons\Kaa_online.png" alt="Logo">
+    <!-- Main Program Image-->
+    <img src="../images/Kaa_IDE.png" alt="Logo" class="main-program-img">
+    <!-- Main Program Information -->
     <fieldset class="item" id="main-program">
         <legend>Main Program</legend>
+        <!-- General Information -->
+        <h3 class="item-head">General information</h3>
         <p class="basic">
             Kaa_IDE is designed for writing and testing Python code within Digital Content Creation (DCC) programs.</p>
         <p class="basic">
@@ -34,6 +48,158 @@
         </p>
         <p class="basic">
             Currently, the program is in the development and early access stage. Some features may not work as expected, and bugs may be present.
+        </p>
+        <!-- General Scheme Image -->
+        <h3 class="item-head" id="general-scheme">General scheme</h3>
+        <img src="../images/main_scheme.png" alt="scheme" class="inblock-img">
+        <!-- Main Components Information -->
+        <h3 class="item-head" id="main-components">Main components</h3>
+        <p class="basic">
+            When you launch the application, the program icon shown in the image below appears.
+        </p>
+        <!-- Main Button Information -->
+        <note class="main">Main button.</note><br>
+        <img src="../images/main_btn.png" alt="main btn" class="scheme-img">
+        <ol>
+            <li>Clicking on the icon collapses/expands the main program window.<br>
+            This icon allows you to drag the entire external structure.
+            </li>
+            <li>
+                Close the program.<br><br>
+                <note>Note: Closing the program using this button is correct and will not result in the loss of internal tabs or text.
+                The program automatically saves files when closing.</note><br><br>
+            </li>
+            <li>
+                Call the file saving/loading window.
+            </li>
+        </ol>
+        <!-- Save/Load Window Information -->
+        <note class="main">Saving/loading window.</note><br>
+        <img src="../images/save-win.png" alt="main btn" class="scheme-img">
+        <p class="basic">
+            All components of this widget lead to the calling of dialogs (save - load).
+        </p>
+        <ol>
+            <li>Save the text of the current tab with the <note>.py</note> extension.</li>
+            <li> Save the text of all tabs to a file with the <note>.kaa</note> extension.<br><br>
+                <note>Note: The <note>.kaa</note> format is a custom format for this program that allows you to save all open tabs in one file.</note><br><br>
+            </li>
+            <li>Loads text files <note>(.txt, .py)</note> and creates new tabs based on their names.</li>
+            <li>Loads a <note>.kaa</note> file and restores all tabs saved in it. Overwrites the current state.</li>
+        </ol>
+        <!-- Main Program Window Information -->
+        <note class="main">Main program window.</note><br>
+        <img src="../images/main-window.png" alt="main win" class="scheme-img">
+        <ol>
+            <li>Main tabs (multi-window mode). Right-clicking a tab displays a context menu that allows you to create a new tab or rename the current one.
+                 On the right side of the tab is a mini-button to close the tab.<br><br>
+                 <note>Note: The program supports multi-window mode. You can create multiple tabs and switch between them.
+                    It is not possible to delete the last (only) tab.
+                Tab names are used when saving in .py format. </note><br><br>
+            </li>
+            <li> The main window for writing Python code. It allows for full code editing, with all the conveniences discussed below.</li>
+            <li>Additional buttons.<br><br>
+                <ul>
+                    <li><note>env</note> a button under development that logs objects loaded into the internal environment. A separate object editor is planned.</li>
+                    <li><note>Show\Hide Block lines</note></li>
+                    <li><note>Unfold all</note></li><br>
+                </ul>
+            </li>
+            <li>Line numbering area. Allows you to set navigation bookmarks and control block folding.</li>
+            <li>Information line. Contains information about the interpreter version and the current cursor position.
+                Allows you to quickly move the cursor.
+            </li>
+            <li>Log output window. This window allows you to monitor objects. Exceptions are also displayed in this window.</li>
+        </ol>
+        <!-- Line Numbers Information -->
+        <note class="main">Line numbering area.</note><br>
+        <img src="../images/line-numbers.png" alt="line numbers" class="scheme-img">
+        <ol>
+            <li>Left-clicking the numbers displays navigation tabs. 
+                These tabs facilitate hotkey navigation and also visually highlight important sections of code.<br><br>
+                <note>Note: Alternating left-clicks changes the colors until reset. Alt + left-click to step back. Ctrl + left-click to clear the tab.</note><br><br>
+            </li>
+            <li>The "+" and "-" icons allow you to collapse code blocks (hide them).
+                Icons appear when you hover over them.<br><br>
+                <note>Note: The text doesn't disappear, it's just hidden. "-" collapses the block, "+" expands it.
+                    If a code block is collapsed, a "folded" icon appears.
+                </note>
+            </li>
+        </ol>
+        <img src="../images/fold.png" alt="line numbers" class="scheme-img">
+    </fieldset>
+    <!-- Hotkeys Information -->
+    <fieldset class="item" id="hotkeys">
+        <legend>Hotkeys</legend>
+        <p class="basic">Note: Hotkeys are only available in the main program window. 
+            When the main program window is not active, hotkeys will not work.
+        </p>
+        <h3 class="item-head" id="general-hotkeys">General hotkeys</h3>
+        <p class="hotkeys-description">
+            <!-- Ctrl + Enter -->
+            <p class="hotkeys">Ctrl + Enter<br> Ctrl + Return</p> <p class="clear"><note class="main">Runs Python code written in the main window (editor).</note><br><br>
+                The objects created during the process are placed in an isolated environment (sandbox).
+                <p class="clear"> <note>Depends on the selection:</note> <br><br>
+                    - If a selection is made, only the selected code will be executed (considering the environment).<br>
+                    - If no selection is made, the entire code in the editor will be executed.
+                </p>
+                <p class="clear"> <note>The location of the cursor does not matter.</note></p>
+            </p>
+            <!-- Ctrl + E -->
+            <p class="hotkeys">Ctrl + E</p> <p class="clear"> <note class="main">Environmental check.</note>
+                 <p class="clear">
+                    - If objects were created (overwritten) as a result of running the code, they will be placed in the environment.
+                    A list of created objects is output to the log.<br> 
+                    - Otherwise, the log will indicate that the environment is clean.
+                </p>
+            </p>
+            <!-- Ctrl + R -->
+            <p class="hotkeys">Ctrl + R</p> <p class="clear"> <note class="main">Environment clear.</note></p>
+            <p class="clear">
+                    Completely clears the environment of previously created objects.
+                </p>
+        </p>
+        <!-- Help Hotkey -->
+        <p class="hotkeys">F1</p> <p class="clear"> <note class="main">Help with the current DCC API.</note></p>
+            <p class="clear">
+                    Opens the home web browser and displays the main page with the current DCC API.
+                </p>
+        </p>
+        <p class="basic">Note: The editor is a hybrid between the IDE and REPL models and can be used for detailed analysis of created objects.
+        </p>
+        <h3 class="item-head" id="text-editing-hotkeys">Text editing hotkeys</h3>
+        <!-- Tab -->
+        <p class="hotkeys">Tab</p> <p class="clear"> <note class="main">Equivalent to 4 * spaces.</note></p>
+            <p class="clear">
+                <note>Supports multi-line mode.</note>
+            </p>  
+        </p>
+        <!-- Shift + Tab -->
+        <p class="hotkeys">Shift + Tab</p> <p class="clear"> <note class="main">Reverse action.</note></p>
+            <p class="clear">Estimates the number of spaces before text. Removes indentation in 4-space increments.</p>
+        <p class="clear">
+                <note>Supports multi-line mode.</note>
+        </p>  
+        </p>
+        <!-- Ctrl + D -->
+        <p class="hotkeys">Ctrl + D</p> <p class="clear"> <note class="main">Duplicate line.</note></p>
+            <p class="clear">Clicking duplicates the current line and places it below the cursor, moves the cursor to the new line.</p>
+        <p class="clear">
+                <note>Supports multi-line mode.</note>
+        </p>  
+        </p>
+        <!-- Ctrl + / -->
+        <p class="hotkeys">Ctrl + /</p> <p class="clear"> <note class="main">Comment out the line (remove comment).</note></p>
+            <p class="clear">Creates a comment (#) from the line where the cursor is located.
+                Pressing it again removes the comment.</p>
+        <p class="clear">
+                <note>Supports multi-line mode.</note>
+        </p>  
+        </p>
+        <!-- Ctrl + + and Ctrl + - -->
+        <p class="hotkeys">Ctrl + +<br> Ctrl + -</p> <p class="clear"><note class="main">Change font sizes.</note><br><br>
+                (Ctrl + +) increases the font size.<br>
+                (Ctrl + -) decreases the font size.
         </p>
     </fieldset>
 </body>
