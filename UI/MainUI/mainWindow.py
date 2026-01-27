@@ -9,6 +9,7 @@ from Kaa_IDE.Core.loaders import iconLoader, pixmapLoader, cssLoader
 from Kaa_IDE.Core.temp import TempSystem
 from Kaa_IDE.Core.inspector import inspect_attr
 from Kaa_IDE.UI.Styles.tab_bar import css as tab_css
+from Kaa_IDE.Docs.Help.help import HelpWidget
 
 
 #Главная кнопка ("Зазывала" главного окна)
@@ -318,18 +319,29 @@ class KaaMDIWindow(QtWidgets.QMainWindow):
 
         self.setFocusPolicy(QtCore.Qt.FocusPolicy.StrongFocus)
         self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground)
-        self.setWindowTitle('Kaa_IDE v0.12')
+        self.setWindowTitle('Kaa_IDE v0.17')
         self.mdi_central = MDIArea(self)
         self.setCentralWidget(self.mdi_central)
+
+        self.k_help = None
 
         self.tool_bar_opacity = self.create_tool_bar()
         self.addToolBar(QtCore.Qt.ToolBarArea.LeftToolBarArea, self.tool_bar_opacity)
         self.mdi_central.helpCall.connect(self.on_help)
-
+    # Если help закрывается - обнуляем
+    def on_help_close(self):
+        self.help_counter = 0
+        self.k_help = None
+    # Вывод help из главного окна
     def on_help(self):
         if self.help_counter > 0:
             return
-        print('Запускаю Help')
+        self.help_counter = 1
+        self.k_help = HelpWidget()
+        self.k_help.show()
+        # print('Запускаю Help') # Тест
+        self.k_help.raise_()
+        self.k_help.closeSignal.connect(self.on_help_close)
 
     def create_tool_bar(self):
         tool_bar = QtWidgets.QToolBar(self)
