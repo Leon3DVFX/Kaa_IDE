@@ -1,15 +1,41 @@
 html,body {
     /* Общие стили для html и body */
-    background-color: #2c2c2c; /* тёмно-серый */
+    background-color: #202020; /* тёмно-серый */
     color: #dfdfdf; /* чтоб текст был виден */
     font-family: 'JetBrains Mono'; /* моноширинный шрифт */
     margin: 0;/* убираем отступы по умолчанию */
     padding: 0;/* убираем отступы по умолчанию */
 }
 
+.main-program-img {
+    display: block;
+    object-fit: contain;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.inblock-img {
+    display: block;
+    object-fit: contain;
+    width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+    margin-bottom: 20px;
+    margin-top: 20px;
+}
+.scheme-img {
+    margin-left: 10px;
+    margin-right: auto;
+    margin-bottom: 10px;
+    margin-top: 10px;
+}
+
 fieldset {
     border: 2px solid #3295DB; /* синий цвет границы */
-    background-color: #3a3a3a; /* чуть светлее фон */
+    background-image: 
+        linear-gradient(to right,
+                #444444 0%,
+                #1f1f1f 100%);
     border-radius: 8px; /* скругленные углы */
     margin: 10px;
     padding: 10px;
@@ -23,10 +49,12 @@ fieldset legend {
     border: #3295DB 2px solid;/* синий цвет рамки */
     padding: 5px 10px;/* Отступы внутри легенды */
     border-radius: 5px;/* скругленные углы */
-    background-color: #2c2c2c; /* совпадает с фоном страницы */
+   background-image: 
+        linear-gradient(to right,
+                #444444 0%,
+                #1f1f1f 100%);
     text-shadow: 2px 2px 4px #000000;/* Тень для текста */
 }
-
 
 fieldset.item {
     border: 2px solid #dbb432; /* синий цвет границы */
@@ -37,7 +65,7 @@ fieldset.item {
 }
 
 fieldset.item legend {
-    color: #dbb432;
+    color: #dbb432; 
     font-weight: bolder;/* жирный шрифт */
     font-size: 1.2em;/* немного больше обычного */
     font-style: italic;/* курсив */
@@ -58,6 +86,27 @@ nav ul {
     margin-bottom: 5px;
 }
 
+nav ul.sub-menu {
+    font-size: 90%; /* уменьшенный размер шрифта */
+    list-style-type: disc; /* маркеры в виде кружков */
+}
+
+.item-head {
+    color: #dbb432; /* золотистый цвет заголовков */
+    font-weight: bold; /* жирный шрифт */
+    margin-top: 10px;
+    margin-left: 20px;
+    text-shadow: 2px 2px 4px #000000; /* Тень для текста */
+    border: #1f1f1f 2px solid;/* рамка */
+    padding: 5px 10px;/* Отступы внутри заголовка */
+    border-radius: 5px;/* скругленные углы */
+    background-image: 
+        linear-gradient(to right,
+                #546b86 0%,
+                #1f1f1f 100%); /* градиентный фон */
+    box-shadow: #1f1f1f 2px 2px 4px; /* Тень для блока заголовка */
+}
+
 a {
     color: #3295DB; /* синий цвет ссылок */
     text-decoration-line: underline; /* Подчеркивание текста */
@@ -72,7 +121,41 @@ p.basic {
     font-size: 1em; /* стандартный размер шрифта */
     line-height: 1.5em; /* межстрочный интервал */
     text-align: justify; /* выравнивание по ширине */
-    text-indent: 25px; /* отступ первой строки */
+    text-indent: 20px; /* отступ первой строки */
     margin-top: 0px;
     margin-bottom: 10px;
+}
+
+p.hotkeys {
+    font-weight: bold;
+    float: left;
+    color: #dfdfdf;
+    border: #dfdfdf 2px solid;/* рамка */
+    padding: 5px 10px;/* Отступы внутри заголовка */
+    border-radius: 5px;/* скругленные углы */
+    margin-left: 20px;
+    background-image: 
+        linear-gradient(to right,
+                #444444 0%,
+                #1f1f1f 100%);  /* градиентный фон */
+    box-shadow: #1f1f1f 2px 2px 4px; /* Тень для блока заголовка */
+    margin-right: 10px; /* Отступ справа */
+}
+
+p.clear {
+    clear: both;
+    margin-left: 20px;
+}
+
+note {
+    font-weight: bold;
+    color: #d4bb9b; /* золотистый цвет */
+    text-shadow: 2px 2px 4px #000000; /* Тень для текста */
+}
+
+note.main {
+    font-size: larger;
+    font-weight: bolder;
+    color: #cf913f; /* ярко-золотистый цвет */
+    text-shadow: 2px 2px 4px #000000; /* Тень для текста */
 }
