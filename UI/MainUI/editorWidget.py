@@ -1554,7 +1554,7 @@ class LineInfo(QtWidgets.QWidget):
         super().__init__(parent)
         self.editor = parent.editor
         self.box = QtWidgets.QHBoxLayout(self)
-        self.setMaximumHeight(22)
+        self.setMaximumHeight(25)
         # self.setMinimumWidth(550)
         self.box.setContentsMargins(0, 0, 0, 0)
         self.box.setSpacing(6)
