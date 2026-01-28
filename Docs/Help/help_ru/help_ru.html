@@ -1,20 +1,209 @@
-<!DOCTYPE html>
 <html lang="en">
 <head>
+    <link rel="stylesheet" href="../styles/style.css">
     <meta charset="UTF-8">
-    <title>Title</title>
-    <link rel="stylesheet"
-          href="style/style.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Help Document</title>
 </head>
 <body>
-    <header>
-        <div class="test">Тестовый HTML</div>
-        <div><q>Для проверки работоспособности</q></div>
-    </header>
-    <main>
-    </main>
-    <footer>
-        <address><p>Тестовый адрес</p></address>
-    </footer>
+    <!-- Help Information -->
+    <fieldset class="fieldset-help">
+        <legend>Kaa_IDE</legend>
+        <p>Справочный документ для приложения.<br>
+            Автор: Leon3DVFX<br>
+            Лицензия: MIT<br>
+        </p>
+    </fieldset>
+    <!-- Navigation -->
+    <fieldset>
+        <legend>Навигация</legend>
+        <nav>
+            <ul>
+                <li><a href="#main-program">Основная программа</a></li>
+                    <ul class="sub-menu">
+                        <li><a href="#main-program">Общая информация</a></li>
+                        <li><a href="#general-scheme">Общая схема</a></li>
+                        <li><a href="#main-components">Основные компоненты</a></li> 
+                    </ul>
+                <li><a href="#hotkeys">Горячие клавиши</a></li>
+                    <ul class="sub-menu">
+                        <li><a href="#general-hotkeys">Общие горячие клавиши</a></li>
+                        <li><a href="#text-editing-hotkeys">Горячие клавиши редактирования текста</a></li>
+                    </ul>
+                <li><a href="#structure">Структура</a></li>
+            </ul>
+        </nav>
+    </fieldset>
+    <!-- Main Program Image-->
+    <img src="../images/Kaa_IDE.png" alt="Logo" class="main-program-img">
+    <!-- Main Program Information -->
+    <fieldset class="item" id="main-program">
+        <legend>Основная программа</legend>
+        <!-- General Information -->
+        <h3 class="item-head">Общая информация</h3>
+        <p class="basic">
+            Kaa_IDE предназначен для написания и тестирования кода Python в программах цифрового создания контента (DCC).</p>
+        <p class="basic">
+            Программа стабильно работает в 3 DCC: Autodesk Maya, Autodesk 3dsMax, SideFX Houdini.
+        </p>
+        <p class="basic">
+            В настоящее время программа находится на стадии разработки и раннего доступа. Некоторые функции могут работать не так, как ожидалось, и могут присутствовать ошибки.
+        </p>
+        <!-- General Scheme Image -->
+        <h3 class="item-head" id="general-scheme">Общая схема</h3>
+        <img src="../images/main_scheme.png" alt="scheme" class="inblock-img">
+        <!-- Main Components Information -->
+        <h3 class="item-head" id="main-components">Основные компоненты</h3>
+        <p class="basic">
+            При запуске приложения появляется иконка, показанная на изображении ниже.
+        </p>
+        <!-- Main Button Information -->
+        <note class="main">Главная кнопка.</note><br>
+        <img src="../images/main_btn.png" alt="main btn" class="scheme-img">
+        <ol>
+            <li>Нажатие на значок сворачивает/разворачивает главное окно программы.<br>
+            Этот значок позволяет перетаскивать всю внешнюю структуру целиком.
+            </li>
+            <li>
+                Закрыть программу.<br><br>
+                <note>Примечание: Закрытие программы с помощью этой кнопки корректно и не приведет к потере внутренних вкладок или текста.
+                Программа автоматически сохраняет файлы при закрытии.</note><br><br>
+            </li>
+            <li>
+                Вызвать окно сохранения/загрузки файла.
+            </li>
+        </ol>
+        <!-- Save/Load Window Information -->
+        <note class="main">Окно сохранения/загрузки.</note><br>
+        <img src="../images/save-win.png" alt="main btn" class="scheme-img">
+        <p class="basic">
+            Все компоненты этого виджета ведут к вызову диалогов (сохранение - загрузка).
+        </p>
+        <ol>
+            <li>Сохранить текст текущей вкладки с расширением <note>.py</note>.</li>
+            <li> Сохранить текст всех вкладок в файл с расширением <note>.kaa</note>.<br><br>
+                <note>Примечание: Формат <note>.kaa</note> является пользовательским форматом для этой программы, который позволяет сохранить все открытые вкладки в одном файле.</note><br><br>
+            </li>
+            <li>Загружает текстовые файлы <note>(.txt, .py)</note> и создает новые вкладки на основе их имен.</li>
+            <li>Загружает файл <note>.kaa</note> и восстанавливает все вкладки, сохраненные в нем. Перезаписывает текущее состояние.</li>
+        </ol>
+        <!-- Main Program Window Information -->
+        <note class="main">Окно основной программы.</note><br>
+        <img src="../images/main-window.png" alt="main win" class="scheme-img">
+        <ol>
+            <li>Основные вкладки (многократный режим окон). Правый клик по вкладке показывает контекстное меню, позволяющее создать новую вкладку или переименовать текущую.
+                 Справа от вкладки находится мини-кнопка для закрытия вкладки.<br><br>
+                 <note>Примечание: Программа поддерживает многократный режим окон. Можно создавать несколько вкладок и переключаться между ними.
+                    Невозможно удалить последнюю (единственную) вкладку.
+                Имена вкладок используются при сохранении в формате .py.</note><br><br>
+            </li>
+            <li> Окно основной программы для написания кода на Python. Оно позволяет выполнять полное редактирование кода, с учетом всех удобств, обсуждаемых ниже.</li>
+            <li>Дополнительные кнопки.<br><br>
+                <ul>
+                    <li><note>env</note> кнопка для регистрации и работы с объектами, помещенными во внутреннее окружение. Находится в разработке.</li>
+                    <li><note>Показать/Скрыть блоки.</note></li>
+                    <li><note>Развернуть все.</note></li><br>
+                </ul>
+            </li>
+            <li>Область нумерации строк. Позволяет устанавливать закладки навигации и управлять сворачиванием блоков.</li>
+            <li>Информационная строка. Содержит информацию о версии интерпретатора и текущей позиции курсора.
+                Позволяет быстро перемещать курсор.</li>
+            <li>Окно вывода логов. Это окно позволяет отслеживать объекты. Исключения также отображаются в этом окне.</li>
+        </ol>
+        <!-- Line Numbers Information -->
+        <note class="main">Область нумерации строк.</note><br>
+        <img src="../images/line-numbers.png" alt="line numbers" class="scheme-img">
+        <ol>
+            <li>ЛКМ по номеру строки устанавливает/удаляет закладку навигации. 
+                Данные элементы упрощают навигацию по коду с помощью горячих клавиш, а также визуально выделяют важные разделы кода.<br><br>
+                <note>Примечание: Поочередное нажатие ЛКМ меняет цвета закладок до сброса. Alt + ЛКМ для шага назад. Ctrl + ЛКМ для очистки закладок.</note><br><br>
+            </li>
+            <li>Иконки "+" и "-" позволяют сворачивать блоки кода (скрывать их).
+                Иконки появляются при наведении курсора мыши.<br><br>
+                <note>Примечание: Текст не исчезает, он просто скрывается. "-" сворачивает блок, "+" раскрывает его.
+                    Если блок свернут, появляется иконка-маркер "folded".
+                </note>
+            </li>
+        </ol>
+        <img src="../images/fold.png" alt="line numbers" class="scheme-img">
+    </fieldset>
+    <!-- Hotkeys Information -->
+    <fieldset class="item" id="hotkeys">
+        <legend>Горячие клавиши</legend>
+        <p class="basic"><note>Примечание: Горячие клавиши доступны только в главном окне программы.
+            Когда главное окно программы не активно, горячие клавиши не будут работать.</note>  
+        </p>
+        <h3 class="item-head" id="general-hotkeys">Основные горячие клавиши</h3>
+        <p class="hotkeys-description">
+            <!-- Ctrl + Enter -->
+            <p class="hotkeys">Ctrl + Enter<br> Ctrl + Return</p> <p class="clear"><note class="main">Запускает Python-код, написанный в главном окне (редакторе).</note><br><br>
+                Объекты, созданные в процессе, помещаются во внутреннее окружение (песочница).
+                <p class="clear"> <note>Операция зависима от выделения:</note> <br><br>
+                    - Если выделен фрагмент кода, будет выполнен только этот фрагмент (с учетом окружения).<br>
+                    - Если выделения нет, будет выполнен весь код в редакторе.
+                </p>
+                <p class="clear"> <note>Расположение курсора не имеет значения.</note></p>
+            </p>
+            <!-- Ctrl + E -->
+            <p class="hotkeys">Ctrl + E</p> <p class="clear"> <note class="main">Проверка окружения.</note>
+                 <p class="clear">
+                    - Если объекты были созданы (перезаписаны) в результате выполнения кода, они будут помещены в окружение.
+                    В логах будет отображен список созданных объектов.<br> 
+                    - Если объекты не были созданы, лог будет содержать сообщение о том, что окружение чисто.
+                </p>
+            </p>
+            <!-- Ctrl + R -->
+            <p class="hotkeys">Ctrl + R</p> <p class="clear"> <note class="main">Очистка окружения.</note></p>
+            <p class="clear">
+                    Полностью очищает окружение от ранее созданных объектов.
+                </p>
+        </p>
+        <!-- Help Hotkey -->
+        <p class="hotkeys">F1</p> <p class="clear"> <note class="main">Помощь с API текущего DCC.</note></p>
+            <p class="clear">
+                    Открывает главный веб-браузер и отображает главную страницу с текущим API DCC.
+                </p>
+        </p>
+        <p class="basic"><note>Примечание: Редактор является гибридом между IDE и REPL моделями и может использоваться для детального анализа созданных объектов.</note>
+        </p>
+        <h3 class="item-head" id="text-editing-hotkeys">Горячие клавиши редактирования текста</h3>
+        <!-- Tab -->
+        <p class="hotkeys">Tab</p> <p class="clear"> <note class="main">Эквивалент 4 пробелам.</note></p>
+            <p class="clear">
+                <note>Поддерживает многострочный режим.</note>
+            </p>  
+        </p>
+        <!-- Shift + Tab -->
+        <p class="hotkeys">Shift + Tab</p> <p class="clear"> <note class="main">Обратное действие.</note></p>
+            <p class="clear">Определяет количество пробелов перед текстом. Удаляет отступы по 4 пробела.</p>
+        <p class="clear">
+                <note>Поддерживает многострочный режим.</note>
+        </p>  
+        </p>
+        <!-- Ctrl + D -->
+        <p class="hotkeys">Ctrl + D</p> <p class="clear"> <note class="main">Дублировать строку.</note></p>
+            <p class="clear">Нажатие дублирует текущую строку и помещает её ниже курсора, перемещая курсор на новую строку.</p>
+        <p class="clear">
+                <note>Поддерживает многострочный режим.</note>
+        </p>  
+        </p>
+        <!-- Ctrl + / -->
+        <p class="hotkeys">Ctrl + /</p> <p class="clear"> <note class="main">Закомментировать строку (убрать комментарий).</note></p>
+            <p class="clear">Создает комментарий (#) из строки, где находится курсор.
+                Нажатие снова убирает комментарий.</p>
+        <p class="clear">
+                <note>Поддерживает многострочный режим.</note>
+        </p>  
+        </p>
+        <!-- Ctrl + + and Ctrl + - -->
+        <p class="hotkeys">Ctrl + +<br> Ctrl + -</p> <p class="clear"><note class="main">Изменить размер шрифта.</note><br><br>
+                (Ctrl + +) увеличивает размер шрифта.<br>
+                (Ctrl + -) уменьшает размер шрифта.
+        </p>
+        <!-- Ctrl + uparrow, Ctrl + downarrow -->
+        <p class="hotkeys">Ctrl + &uparrow;<br> Ctrl + &downarrow;</p> <p class="clear"><note class="main">Переместить курсор к навигационной закладке вверх/вниз.</note><br><br>
+                (Ctrl + ↑) перемещает курсор к навигационной закладке вверх.<br>
+                (Ctrl + ↓) перемещает курсор к навигационной закладке вниз.
+    </fieldset>
 </body>
 </html>
