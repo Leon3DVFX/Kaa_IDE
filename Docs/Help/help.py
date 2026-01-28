@@ -1,6 +1,6 @@
 from PySide6 import QtWidgets, QtCore, QtWebEngineWidgets
 from importlib import resources
-from Kaa_IDE.Core.loaders import iconLoader
+from Kaa_IDE.Core.loaders import iconLoader, pixmapLoader
 
 # Общий виджет - обертка
 class HelpWidget(QtWidgets.QWidget):
