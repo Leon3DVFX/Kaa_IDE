@@ -319,7 +319,7 @@ class KaaMDIWindow(QtWidgets.QMainWindow):
 
         self.setFocusPolicy(QtCore.Qt.FocusPolicy.StrongFocus)
         self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground)
-        self.setWindowTitle('Kaa_IDE v0.17')
+        self.setWindowTitle('Kaa_IDE v0.20')
         self.mdi_central = MDIArea(self)
         self.setCentralWidget(self.mdi_central)
 
