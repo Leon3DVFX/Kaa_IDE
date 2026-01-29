@@ -7,6 +7,7 @@ class HelpWidget(QtWidgets.QWidget):
     closeSignal = QtCore.Signal()
     def __init__(self, parent = None):
         super().__init__(parent)
+        self.setStyleSheet('HelpWidget {background-color: #202020;}')
         self.box = QtWidgets.QVBoxLayout(self)
         self.help = HelpViewer(self)
         self.header = Header(self)
