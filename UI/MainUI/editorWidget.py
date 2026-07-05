@@ -4,8 +4,23 @@ from Kaa_IDE.Core.loaders import pixmapLoader, cssLoader, version
 from Kaa_IDE.Core.py_complitter import CompleterTableView
 from Kaa_IDE.Core.highliter import EditorHighlighter
 from Kaa_IDE.Core.block_analyzer import BlockAnalyzer
-from Kaa_IDE.Core.dcc_functions import is_maya, is_houdini, is_max, run_webbrowser
+from Kaa_IDE.Core.dcc_functions import (
+    format_houdini_parm_path,
+    get_houdini_parm_path,
+    get_houdini_parm_tuple_path,
+    has_houdini_parm_path,
+    is_houdini,
+    is_max,
+    is_maya,
+    run_webbrowser,
+    is_node,
+    set_houdini_parm_callback,
+    set_houdini_parm_python_expression,
+    split_houdini_parm_paths,
+)
+from Kaa_IDE.UI.MainUI.Menus.radials.rad_menu import RadialMenu
 
+INTERNAL_EDITOR_MIME = 'application/x-kaa-ide-editor-text'
 
 #Обертка-виджет
 class Editor(QtWidgets.QWidget):
@@ -77,6 +92,7 @@ class EditorMain(QtWidgets.QPlainTextEdit):
     getEnv = QtCore.Signal()
     # Сигнал для передачи точечной нотации
     pointNote = QtCore.Signal(str)
+    parmDropLog = QtCore.Signal(str)
 
     #Инициализация редактора текста
     def __init__(self, parent):
@@ -155,7 +171,198 @@ class EditorMain(QtWidgets.QPlainTextEdit):
         self._deleted = 0
         self.document().contentsChange.connect(self._old_cursor_recalc)
         self.blockCountChanged.connect(self.block_changer)
+        # Принимаем дропы
+        self.setAcceptDrops(True)
+        self._drop_mod = QtCore.Qt.KeyboardModifier.NoModifier
+        self._drop_global_pos = None
+        self._drop_selected_text = None
+        self._pending_parm_path = None
+        self._pending_parm_cursor_pos = None
+        self.parm_drop_menu = self.create_parm_drop_menu()
 
+    # Прехват дропа для сохранения модификаторов клавиатуры
+    def createMimeDataFromSelection(self):
+        source = super().createMimeDataFromSelection()
+        source.setData(INTERNAL_EDITOR_MIME, b'1')
+        return source
+
+    def create_parm_drop_menu(self):
+        menu = RadialMenu(
+            parent=self,
+            radius1=34,
+            radius2=92,
+            num_items=3,
+            animation_duration=120,
+            selection_animation_duration=160,
+            highlight_color=QtGui.QColor(88, 185, 233, 230),
+            take_focus=False,
+        )
+        menu.icon_size = QtCore.QSize(42, 42)
+
+        parm_path_action = menu.addItem(
+            icon=pixmapLoader(r'radial_icons\parm_path.png'),
+            callback=lambda: self.apply_parm_drop_action('parm_path')
+        )
+        parm_path_action.setToolTip('Insert Parm Path')
+
+        py_callback_action = menu.addItem(
+            icon=pixmapLoader(r'radial_icons\py_callback.png'),
+            callback=lambda: self.apply_parm_drop_action('py_callback')
+        )
+        py_callback_action.setToolTip('Set Python Callback')
+
+        py_ex_action = menu.addItem(
+            icon=pixmapLoader(r'radial_icons\py_ex.png'),
+            callback=lambda: self.apply_parm_drop_action('py_expression')
+        )
+        py_ex_action.setToolTip('Set Python Expression')
+
+        return menu
+
+    def show_parm_drop_menu(self, parm_path):
+        self._pending_parm_path = parm_path
+        self._pending_parm_cursor_pos = self.textCursor().position()
+        self.parm_drop_menu.show_at(self._drop_global_pos or QtGui.QCursor.pos())
+
+    def apply_parm_drop_action(self, action):
+        parm_path = self._pending_parm_path
+        cursor_pos = self._pending_parm_cursor_pos
+        self._pending_parm_path = None
+        self._pending_parm_cursor_pos = None
+
+        if not parm_path:
+            self._drop_selected_text = None
+            return
+
+        if action == 'parm_path':
+            parm_text = format_houdini_parm_path(parm_path, as_string=True)
+            if parm_text is not None:
+                self.insert_parm_drop_text(parm_text, cursor_pos)
+                self.parmDropLog.emit(f'Parm Drop: inserted path {parm_text}')
+            else:
+                self.parmDropLog.emit(f'Parm Drop failed: empty parm path data ({parm_path})')
+            self._drop_selected_text = None
+            return
+
+        code = self.current_code_for_parm_drop()
+        self._drop_selected_text = None
+        if not code.strip():
+            self.parmDropLog.emit(f'Parm Drop failed: no code to apply for {parm_path}')
+            return
+
+        if action == 'py_callback':
+            self.apply_parm_code(parm_path, code, set_houdini_parm_callback, 'Python Callback', tuple_level=True)
+        elif action == 'py_expression':
+            self.apply_parm_code(parm_path, code, set_houdini_parm_python_expression, 'Python Expression')
+
+    def insert_parm_drop_text(self, text, cursor_pos):
+        cursor = self.textCursor()
+        if cursor_pos is not None:
+            cursor.setPosition(cursor_pos)
+        cursor.insertText(text)
+        self.setTextCursor(cursor)
+
+    def current_code_for_parm_drop(self):
+        if self._drop_selected_text is not None:
+            return self._drop_selected_text
+
+        cursor = self.textCursor()
+        if cursor.hasSelection():
+            return cursor.selectedText().replace('\u2029', '\n')
+        return self.toPlainText()
+
+    def parm_drop_targets(self, parm_path, tuple_level=False):
+        targets = []
+        seen = set()
+        for path in split_houdini_parm_paths(parm_path):
+            label = get_houdini_parm_tuple_path(path) if tuple_level else path
+            label = label or path
+            if label in seen:
+                continue
+            seen.add(label)
+            targets.append((path, label))
+        return targets
+
+    def apply_parm_code(self, parm_path, code, setter, title, tuple_level=False):
+        errors = []
+        successes = []
+        for path, label in self.parm_drop_targets(parm_path, tuple_level=tuple_level):
+            ok, reason = setter(path, code)
+            if not ok:
+                errors.append(f'{label}: {reason}')
+            else:
+                successes.append(label)
+
+        messages = [f'Parm Drop: {title} applied to {path}' for path in successes]
+        if errors:
+            for error in errors:
+                messages.append(f'Parm Drop failed: {title} -> {error}')
+        if messages:
+            self.parmDropLog.emit('\n'.join(messages))
+
+    def dropEvent(self, event):
+        self._drop_global_pos = QtGui.QCursor.pos()
+        self._drop_mod = event.keyboardModifiers()
+        cursor = self.textCursor()
+        if cursor.hasSelection():
+            self._drop_selected_text = cursor.selectedText().replace('\u2029', '\n')
+        else:
+            self._drop_selected_text = None
+        try:
+            super().dropEvent(event)
+        finally:
+            self._drop_mod = QtCore.Qt.KeyboardModifier.NoModifier
+            self._drop_global_pos = None
+            if self._pending_parm_path is None:
+                self._drop_selected_text = None
+
+    # Методы для перехвата дропа из Houdini (для передачи параметров)
+    def canInsertFromMimeData(self, source):
+        if has_houdini_parm_path(source):
+            return True
+
+        if source.hasText():
+            return True
+
+        return super().canInsertFromMimeData(source)
+
+    # Методы для перехвата дропа из Houdini (для передачи параметров)
+    def insertFromMimeData(self, source):
+        if source.hasFormat(INTERNAL_EDITOR_MIME):
+            super().insertFromMimeData(source)
+            return
+
+        parm_path = get_houdini_parm_path(source)
+        mods = self._drop_mod
+        # Сбрасывание параметров Houdini
+        if parm_path is not None:
+            if mods & QtCore.Qt.KeyboardModifier.AltModifier:
+                self.show_parm_drop_menu(parm_path)
+                return
+
+            parm_text = format_houdini_parm_path(
+                parm_path,
+                as_string=False
+            )
+            if parm_text is not None:
+                self.textCursor().insertText(parm_text)
+                return
+        # Сбрасывание текста
+        if source.hasText():
+            text = source.text()
+            new_text = repr(text)
+            
+            if is_node(text):
+                if mods & QtCore.Qt.KeyboardModifier.AltModifier:
+                    new_text = f"{text!r}"
+                    self._drop_mod = QtCore.Qt.KeyboardModifier.NoModifier
+                else:
+                    new_text = f"hou.node({text!r})"
+
+            self.textCursor().insertText(new_text)
+            return
+
+        super().insertFromMimeData(source)
     # Доп кнопки и их пересчет
     def create_unfold_all_btn(self):
         btn = SubButton(parent=self.viewport(), normal=r'line_area_icons\unfold_all_normal.png',

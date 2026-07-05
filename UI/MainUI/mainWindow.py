@@ -930,6 +930,7 @@ class MainWindow(QtWidgets.QWidget):
         self.editor.envRefresh.connect(self.env_refresh)
         self.editor.getEnv.connect(self.get_env)
         self.editor.pointNote.connect(self.point_note_complitter)
+        self.editor.parmDropLog.connect(self.log_editor_message)
         self.editor_main.editorFontChanged.connect(self.logoutFontChange)
         self.editor.setFocus()
         self.setMouseTracking(True)
@@ -1009,6 +1010,7 @@ class MainWindow(QtWidgets.QWidget):
 
     # Получение env в виде текста в Logout
     def get_env(self):
+        self.reset_logout_text_format()
         self.logout.clear()
         gl_dict = self.global_env
         res_str = ''
@@ -1026,8 +1028,45 @@ class MainWindow(QtWidgets.QWidget):
         else:
             self.logout.setPlainText(res_str)
 
+    @QtCore.Slot(str)
+    def log_editor_message(self, message):
+        self.logout.clear()
+        cursor = self.logout.textCursor()
+        cursor.movePosition(QtGui.QTextCursor.MoveOperation.End)
+
+        for index, line in enumerate(message.splitlines()):
+            line_format = QtGui.QTextCharFormat()
+            lower_line = line.lower()
+            if 'failed' in lower_line or 'error' in lower_line:
+                line_format.setForeground(QtGui.QColor('#D7837F'))
+            elif line.startswith('Parm Drop:'):
+                line_format.setForeground(QtGui.QColor('#87B88A'))
+            else:
+                line_format.setForeground(QtGui.QColor('#D5D5D5'))
+
+            if index:
+                cursor.insertText('\n')
+            cursor.insertText(line, line_format)
+
+        default_format = QtGui.QTextCharFormat()
+        default_format.setForeground(QtGui.QColor('#D5D5D5'))
+        cursor.setCharFormat(default_format)
+        self.logout.setTextCursor(cursor)
+        self.reset_logout_text_format()
+
+    def reset_logout_text_format(self):
+        text_format = QtGui.QTextCharFormat()
+        text_format.setForeground(QtGui.QColor('#D5D5D5'))
+        cursor = self.logout.textCursor()
+        cursor.clearSelection()
+        cursor.movePosition(QtGui.QTextCursor.MoveOperation.End)
+        cursor.setCharFormat(text_format)
+        self.logout.setTextCursor(cursor)
+        self.logout.mergeCurrentCharFormat(text_format)
+
     # Сброс env
     def env_refresh(self):
+        self.reset_logout_text_format()
         self.global_env = {
             '__name__': '__main__',
             '__builtins__': __builtins__,
@@ -1043,6 +1082,7 @@ class MainWindow(QtWidgets.QWidget):
     #Запуск кода в основном потоке
     @QtCore.Slot()
     def run_code(self):
+        self.reset_logout_text_format()
         self.logout.clear()
         self.cursor = self.editor.textCursor()
         code = None
