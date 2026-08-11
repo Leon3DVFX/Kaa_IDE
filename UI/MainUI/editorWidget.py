@@ -173,6 +173,7 @@ class EditorMain(QtWidgets.QPlainTextEdit):
         self.blockCountChanged.connect(self.block_changer)
         # Принимаем дропы
         self.setAcceptDrops(True)
+        self._drop_in_progress = False
         self._drop_mod = QtCore.Qt.KeyboardModifier.NoModifier
         self._drop_global_pos = None
         self._drop_selected_text = None
@@ -301,6 +302,7 @@ class EditorMain(QtWidgets.QPlainTextEdit):
             self.parmDropLog.emit('\n'.join(messages))
 
     def dropEvent(self, event):
+        self._drop_in_progress = True
         self._drop_global_pos = QtGui.QCursor.pos()
         self._drop_mod = event.keyboardModifiers()
         cursor = self.textCursor()
@@ -311,6 +313,7 @@ class EditorMain(QtWidgets.QPlainTextEdit):
         try:
             super().dropEvent(event)
         finally:
+            self._drop_in_progress = False
             self._drop_mod = QtCore.Qt.KeyboardModifier.NoModifier
             self._drop_global_pos = None
             if self._pending_parm_path is None:
@@ -328,6 +331,12 @@ class EditorMain(QtWidgets.QPlainTextEdit):
 
     # Методы для перехвата дропа из Houdini (для передачи параметров)
     def insertFromMimeData(self, source):
+        # QPlainTextEdit вызывает этот метод и для drop, и для вставки из
+        # буфера обмена. Форматирование ниже предназначено только для drop.
+        if not self._drop_in_progress:
+            super().insertFromMimeData(source)
+            return
+
         if source.hasFormat(INTERNAL_EDITOR_MIME):
             super().insertFromMimeData(source)
             return
