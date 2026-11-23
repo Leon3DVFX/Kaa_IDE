@@ -92,9 +92,9 @@ class CompleterTableView(QtWidgets.QTableView):
         self.sortByColumn(0, QtCore.Qt.SortOrder.AscendingOrder)
         self.selectRow(0)
         # Глобальные переменные, функции, классы
-        self.vars_f = ObjFinder()
-        self.def_f = DefFinder()
-        self.import_f = ImportFinder()
+        self.symbols = SymbolFinder()
+        self._last_code = None
+        self._last_parse_ok = False
         self.var_items = []
         self.func_items = []
         self.class_items = []
@@ -113,25 +113,17 @@ class CompleterTableView(QtWidgets.QTableView):
         self.on_var()
 
     def on_var(self):
-        self.vars_f.vars.clear()
-        self.def_f.funcs.clear()
-        self.import_f.visible.clear()
         code = self.editor.toPlainText()
-        # Проходим по каждому блоку документа
-
-        try:
-            tree = ast.parse(code)
-            self.vars_f.visit(tree)
-            self.def_f.visit(tree)
-            self.import_f.visit(tree)
-        except SyntaxError:
-            # пропускаем недописанные строки
+        if code != self._last_code:
+            self._last_parse_ok = self.symbols.collect(code)
+            self._last_code = code
+        if not self._last_parse_ok:
             return
 
-        self.vars = self.vars_f.vars
-        self.funcs = self.def_f.funcs
-        self.classes = self.def_f.classes
-        self.imports = self.import_f.visible
+        self.vars = self.symbols.vars
+        self.funcs = self.symbols.funcs
+        self.classes = self.symbols.classes
+        self.imports = self.symbols.imports
         # Очистка предыдущих
         for item in self.var_items + self.func_items + self.class_items + self.import_items:
             self.base_model.removeRow(item.row())
@@ -272,10 +264,30 @@ class CombinedDelegate(QtWidgets.QStyledItemDelegate):
             return
 
 
-# Поисковик глобальных переменных
-class ObjFinder(ast.NodeVisitor):
+class SymbolFinder(ast.NodeVisitor):
     def __init__(self):
         self.vars = set()
+        self.funcs = set()
+        self.classes = set()
+        self.imports = set()
+
+    def collect(self, code):
+        self.vars.clear()
+        self.funcs.clear()
+        self.imports.clear()
+        # Keep discovered class names across edits, as the completer has always done.
+        try:
+            tree = ast.parse(code)
+        except SyntaxError:
+            return False
+        self.visit(tree)
+        return True
+
+    def generic_visit(self, node):
+        # Only statements and their containers can introduce the names we collect.
+        for child in ast.iter_child_nodes(node):
+            if isinstance(child, (ast.stmt, ast.ExceptHandler, ast.match_case)):
+                self.visit(child)
 
     def visit_Assign(self, node):
         for t in node.targets:
@@ -285,46 +297,25 @@ class ObjFinder(ast.NodeVisitor):
                 for e in t.elts:
                     if isinstance(e, ast.Name):
                         self.vars.add(e.id)
-        self.generic_visit(node)
-
-
-# Поисковик функций и классов
-class DefFinder(ast.NodeVisitor):
-    def __init__(self):
-        self.funcs = set()
-        self.classes = set()
 
     def visit_FunctionDef(self, node):
         self.funcs.add(node.name)
         self.generic_visit(node)
 
-    def visit_AsyncFunctionDef(self, node):
-        self.funcs.add(node.name)
-        self.generic_visit(node)
+    visit_AsyncFunctionDef = visit_FunctionDef
 
     def visit_ClassDef(self, node):
         self.classes.add(node.name)
         self.generic_visit(node)
 
-# Поисковик модулей
-class ImportFinder(ast.NodeVisitor):
-    def __init__(self):
-        self.visible = set()   # имена, доступные в коде
-
     def visit_Import(self, node):
-        for n in node.names:
-            if n.asname:
-                self.visible.add(n.asname)
-            else:
-                # import a.b.c → доступен "a"
-                self.visible.add(n.name.split('.')[0])
+        for name in node.names:
+            self.imports.add(name.asname or name.name.split('.')[0])
 
     def visit_ImportFrom(self, node):
-        for n in node.names:
-            if n.asname:
-                self.visible.add(n.asname)
-            else:
-                self.visible.add(n.name)
+        for name in node.names:
+            self.imports.add(name.asname or name.name)
+
 
 if __name__ == '__main__':
     import sys

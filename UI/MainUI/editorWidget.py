@@ -1,3 +1,6 @@
+from bisect import bisect_right
+from concurrent.futures import ThreadPoolExecutor
+
 from PySide6 import QtWidgets, QtCore, QtGui
 
 from Kaa_IDE.Core.loaders import pixmapLoader, cssLoader, version
@@ -21,6 +24,7 @@ from Kaa_IDE.Core.dcc_functions import (
 from Kaa_IDE.UI.MainUI.Menus.radials.rad_menu import RadialMenu
 
 INTERNAL_EDITOR_MIME = 'application/x-kaa-ide-editor-text'
+_fold_workers = ThreadPoolExecutor(max_workers=2, thread_name_prefix='kaa-fold')
 
 #Обертка-виджет
 class Editor(QtWidgets.QWidget):
@@ -133,9 +137,18 @@ class EditorMain(QtWidgets.QPlainTextEdit):
         self.document().contentsChange.connect(self.new_contents_change)
         self.complitter.activated.connect(self.on_complite)
         # Анализатор блочности
-        self.block_analyzer = BlockAnalyzer(self.document())
-        self.block_structure = self.block_analyzer.analyze_document(self.document())
-        self.blockCountChanged.connect(self.analyze_block_structure)
+        self.block_structure = BlockAnalyzer(self.document()).structure
+        self._fold_revision = self._applied_fold_revision = 0
+        self._fold_needs_schedule = False
+        self._fold_result = None
+        self._fold_timer = QtCore.QTimer(self)
+        self._fold_timer.setSingleShot(True)
+        self._fold_timer.timeout.connect(self.analyze_block_structure)
+        self._fold_poll = QtCore.QTimer(self)
+        self._fold_poll.setInterval(15)
+        self._fold_poll.timeout.connect(self._finish_fold_analysis)
+        self.document().contentsChange.connect(self._invalidate_fold_structure)
+        self.textChanged.connect(self._schedule_fold_analysis)
         # Доп кнопки
         self.unfold_all_btn = self.create_unfold_all_btn()
         self.show_hide_lines_btn = self.create_show_hide_lines_btn()
@@ -441,13 +454,7 @@ class EditorMain(QtWidgets.QPlainTextEdit):
 
     @QtCore.Slot()
     def unfold_all(self):
-        block_id = 0
-        while self.document().findBlockByNumber(block_id).isValid():
-            block = self.document().findBlockByNumber(block_id)
-            block.setVisible(True)
-            block_id += 1
-        self.line_number_area.folding_data = []
-        self.document().adjustSize()
+        self.line_number_area.unfold_all()
 
     # Пересчет курсора
     def _old_cursor_recalc(self, pos, deleted, added):
@@ -483,9 +490,45 @@ class EditorMain(QtWidgets.QPlainTextEdit):
         self.blockStateChanged.emit(old_pos, new_pos, delta, self._is_added)
         # print(old_pos,new_pos,delta,self._is_added) #Тестер
 
+    def _large_fold_document(self):
+        return self.blockCount() > 1500 or self.document().characterCount() > 100_000
+
+    def _invalidate_fold_structure(self, position, removed, added):
+        if removed or added:
+            self._fold_revision += 1
+            self._fold_needs_schedule = True
+
+    def _schedule_fold_analysis(self):
+        if self._fold_needs_schedule:
+            self._fold_needs_schedule = False
+            self._fold_timer.start(120 if self._large_fold_document() else 0)
+
     def analyze_block_structure(self):
-        self.block_structure = self.block_analyzer.analyze_document(self.document())
-        # self.block_structure = self.block_structure[:-1]
+        if self._fold_result is not None:
+            return
+        revision = self._fold_revision
+        if self._large_fold_document():
+            text = self.document().toRawText().replace('\u2029', '\n')
+            self._fold_result = (revision, _fold_workers.submit(BlockAnalyzer.analyze_text, text))
+            self._fold_poll.start()
+        else:
+            self._apply_fold_structure(revision, BlockAnalyzer(self.document()).structure)
+
+    def _finish_fold_analysis(self):
+        revision, result = self._fold_result
+        if not result.done():
+            return
+        self._fold_result = None
+        self._fold_poll.stop()
+        if revision == self._fold_revision:
+            self._apply_fold_structure(revision, result.result())
+        elif not self._fold_timer.isActive():
+            self.analyze_block_structure()
+
+    def _apply_fold_structure(self, revision, structure):
+        self._applied_fold_revision = revision
+        self.block_structure = structure
+        self.line_number_area.refresh_folds()
 
     def paintEvent(self, event):
         # Задний фон
@@ -525,31 +568,34 @@ class EditorMain(QtWidgets.QPlainTextEdit):
 
     # Отрисовка иконок фолдинга (справа от текста)
     def draw_folded_icons(self, event):
+        gutter = self.line_number_area
+        if not gutter.folded_ranges or self._applied_fold_revision != self._fold_revision:
+            return
         painter = QtGui.QPainter(self.viewport())
         painter.setOpacity(0.5)
         painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
-        folding_data = self.line_number_area.folding_data
         metr = self.fontMetrics().horizontalAdvance(' ')
 
         pixmap = self.line_number_area.folded_pixmap
         scaled_pixmap = pixmap.scaledToHeight(self.fontMetrics().height() - 2,
                                               QtCore.Qt.TransformationMode.SmoothTransformation)
 
-        for data in folding_data:
-            fold_block_id = data[0]
-            block = self.document().findBlockByNumber(fold_block_id)
-            if not block.isVisible():
-                continue
-
-            block_rect = self.blockBoundingGeometry(block).translated(self.contentOffset())
-            chars = len(block.text())
-
-            width = metr * chars
-            # Позиция справа от текста
-            x = block_rect.left() + width + 10
-            y = block_rect.y()
-
-            painter.drawPixmap(int(x), int(y), scaled_pixmap)
+        fold_block_id = self.firstVisibleBlock().blockNumber()
+        bottom = self.cursorForPosition(QtCore.QPoint(0, self.viewport().height())).blockNumber()
+        while 0 <= fold_block_id <= bottom:
+            if fold_block_id in gutter.folded_ranges:
+                block = self.document().findBlockByNumber(fold_block_id)
+                if block.isVisible():
+                    block_rect = self.blockBoundingGeometry(block).translated(self.contentOffset())
+                    layout = block.layout()
+                    last_line = layout.lineAt(layout.lineCount() - 1)
+                    if last_line.isValid():
+                        rect = last_line.naturalTextRect().translated(block_rect.topLeft())
+                        x, y = rect.right(), rect.top()
+                    else:
+                        x, y = block_rect.left() + metr * len(block.text()), block_rect.top()
+                    painter.drawPixmap(int(x + 10), int(y), scaled_pixmap)
+            fold_block_id = gutter.next_visible_fold_block(fold_block_id + 1)
 
     # Отрисовка линий курсора (подсветка блока с курсором)
     def draw_cursor_line(self, event):
@@ -581,79 +627,65 @@ class EditorMain(QtWidgets.QPlainTextEdit):
     # Отрисовка вспомогательных линий
     def draw_block_lines(self, event):
         if not self.show_hide_lines_btn.isChecked():
-            self.update()
             return
-        # Рисуем в viewport()
+        if self._applied_fold_revision != self._fold_revision:
+            return
+
+        first = self.firstVisibleBlock().blockNumber()
+        last = self.cursorForPosition(QtCore.QPoint(0, self.viewport().height())).blockNumber()
+        if not 0 <= first <= last < len(self.block_structure):
+            return
+
+        gutter = self.line_number_area
         painter = QtGui.QPainter(self.viewport())
         pen = QtGui.QPen(QtGui.QColor('#bababa'))
         pen.setWidthF(0.15)
         painter.setPen(pen)
-
         space = self.fontMetrics().horizontalAdvance(' ')
-        x_offset = self.horizontalScrollBar().value()  # компенсация горизонтального скроллинга
-        pad = max(2, int(self.fontMetrics().height() * 0.08))  # пару пикселей padding
+        tab_width = self.tabStopDistance()
+        pad = max(2, int(self.fontMetrics().height() * 0.08))
+        x_offset = self.document().documentMargin() - self.horizontalScrollBar().value()
+        bottom = self.viewport().height()
+        document = self.document()
 
-        lines = []  # активные: [[QLineF, indent], ...]
-        ended_lines = []  # завершённые: [QLineF, ...]
-
-        for s in self.block_structure:
-            block = self.document().findBlockByNumber(s['id'])
-            if not block.isValid() or not block.isVisible():
-                continue
-
-            indent = s['indent']
-            level = s['level']
-            is_opener = s['is_opener']
-
-            # пропускаем верхние уровни
-            if level is None or level == 0:
-                if lines:
-                    for line, line_indent in lines:
-                        y_line = line.y2()
-                        top = self.blockBoundingGeometry(block).translated(self.contentOffset()).top()
-                        x = line_indent * space - x_offset
-                        line.setP2(QtCore.QPointF(x, top - pad))
-                        ended_lines.append(line)
-                        lines.pop()
-                continue
-            # геометрия текущего блока
-            geom = self.blockBoundingGeometry(block).translated(self.contentOffset())
-            top = geom.top()
-            bottom = geom.bottom()
-
-            # --- СНАЧАЛА обновляем существующие линии (растягиваем или закрываем)
-            new_active = []
-            for line, line_indent in lines:
-                if line_indent < indent:
-                    # линия выше по уровню — продлеваем до верхней части текущей видимой области (не до bottom)
-                    x = line_indent * space - x_offset
-                    # подрезаем линию до верхней границы текущего блока минус pad:
-                    line.setP2(QtCore.QPointF(x, bottom - pad))
-                    new_active.append([line, line_indent])
-                else:
-                    # линия должна завершиться (ее уровень >= текущего)
-                    # её завершаем чуть выше текущей строки (чтобы не лезла на text)
-                    x = line_indent * space - x_offset
-                    line.setP2(QtCore.QPointF(x, top - pad))
-                    ended_lines.append(line)
-
-            lines = new_active
-            # --- ТЕПЕРЬ обрабатываем текущую строку
-            if is_opener:
-                # Для opener: создаём новую линию, стартующая чуть ниже bottom (чтобы не лезть на сам текст opener)
-                x = indent * space - x_offset
-                y0 = bottom + pad  # старт чуть ниже bottom
-                new_line = QtCore.QLineF(QtCore.QPointF(x, y0), QtCore.QPointF(x, y0))
-                lines.append([new_line, indent])
+        def draw_guide(opener):
+            if opener in gutter.folded_ranges:
+                return
+            header = self.block_structure[opener]
+            start = header['body_start'] - 1
+            end = gutter.last_visible_fold_block(header['end'])
+            if end <= start or end < first or start > last:
+                return
+            if start < first:
+                y1 = 0
             else:
-                # Для обычной строки: уже сделали подрез/закрытие выше — ничего больше не нужно
-                pass
+                start_block = document.findBlockByNumber(start)
+                y1 = self.blockBoundingGeometry(start_block).translated(self.contentOffset()).bottom() + pad
+            if end > last:
+                y2 = bottom
+            else:
+                end_block = document.findBlockByNumber(end)
+                y2 = self.blockBoundingGeometry(end_block).translated(self.contentOffset()).bottom() - pad
+            if y2 > y1:
+                indentation = 0
+                for character in header['leading']:
+                    if character == '\t':
+                        indentation += tab_width - indentation % tab_width
+                    elif character == ' ':
+                        indentation += space
+                x = x_offset + indentation
+                painter.drawLine(QtCore.QLineF(x, y1, x, y2))
 
-        # в конце: нарисуем активные и завершённые линии
-        for line_info in lines:
-            painter.drawLine(line_info[0])
-        for line in ended_lines:
-            painter.drawLine(line)
+        parent = self.block_structure[first]['parent']
+        while parent is not None:
+            draw_guide(parent)
+            parent = self.block_structure[parent]['parent']
+
+        opener = first
+        while opener <= last:
+            if self.block_structure[opener]['is_opener']:
+                draw_guide(opener)
+            opener = gutter.next_visible_fold_block(opener + 1)
 
     #Перехват конкретных шорткатов (сочетания)
     def event(self, e):
@@ -1208,7 +1240,7 @@ class EditorMain(QtWidgets.QPlainTextEdit):
         block_number = block.blockNumber()
         top = self.blockBoundingGeometry(block).translated(self.contentOffset()).top()
         bottom = top + self.blockBoundingRect(block).height()
-        fold_data = self.line_number_area.folding_data
+        gutter = self.line_number_area
 
         while block.isValid() and top <= event.rect().bottom():
             if block.isVisible() and bottom >= event.rect().top():
@@ -1232,18 +1264,13 @@ class EditorMain(QtWidgets.QPlainTextEdit):
                                      self.fontMetrics().height(),
                                      QtCore.Qt.AlignmentFlag.AlignCenter, number)
             # Отрисовка фолдеров
-            if 0 <= block_number < len(self.block_structure) and block.isVisible():
+            if (self._applied_fold_revision == self._fold_revision
+                    and 0 <= block_number < len(self.block_structure) and block.isVisible()):
                 if self.block_structure[block_number]['is_opener'] and self.line_number_area.icon_opacity > 0:
                     painter.setOpacity(self.line_number_area.icon_opacity)
 
-                    pixmap = self.line_number_area.fold_pixmap
-
-                    for elem in fold_data:
-                        if block_number == elem[0]:
-                            pixmap = self.line_number_area.unfold_pixmap
-                            break
-                        else:
-                            pixmap = self.line_number_area.fold_pixmap
+                    pixmap = (gutter.unfold_pixmap if block_number in gutter.folded_ranges
+                              else gutter.fold_pixmap)
 
                     painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
                     scaled_pixmap = pixmap.scaledToHeight(self.fontMetrics().height() - 2,
@@ -1253,10 +1280,12 @@ class EditorMain(QtWidgets.QPlainTextEdit):
                     painter.drawPixmap(int(x), int(y), scaled_pixmap)
                     painter.setOpacity(1.0)
 
-            block = block.next()
+            next_number = gutter.next_visible_fold_block(block_number + 1)
+            block = (block.next() if next_number == block_number + 1
+                     else self.document().findBlockByNumber(next_number))
             top = bottom
             bottom = top + self.blockBoundingRect(block).height()
-            block_number += 1
+            block_number = next_number
 
     #Обработчики сигналов
     def on_cursor_change(self):
@@ -1279,8 +1308,9 @@ class EditorMain(QtWidgets.QPlainTextEdit):
             if cursor.atBlockStart():
                 break
 
-            cursor.movePosition(QtGui.QTextCursor.MoveOperation.Left,
-                                QtGui.QTextCursor.MoveMode.KeepAnchor)
+            if not cursor.movePosition(QtGui.QTextCursor.MoveOperation.Left,
+                                       QtGui.QTextCursor.MoveMode.KeepAnchor):
+                break
 
             if cursor.selectedText().startswith(group) or cursor.atBlockStart():
                 txt = cursor.selectedText()[1:]
@@ -1353,6 +1383,8 @@ class EditorMain(QtWidgets.QPlainTextEdit):
 
 #Линии редактора + код фолдинг + bookmarks
 class LineNumberArea(QtWidgets.QWidget):
+    metadataChanged = QtCore.Signal()
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.editor = parent
@@ -1361,7 +1393,11 @@ class LineNumberArea(QtWidgets.QWidget):
         self.fold_pixmap = pixmapLoader(r'line_area_icons\fold_icon.png')
         self.folded_pixmap = pixmapLoader(r'line_area_icons\folded_icon.png')
         # Данные фолдинга
-        self.folding_data = []
+        self._fold_anchors = []
+        self.folded_ranges = {}
+        self._hidden_blocks = []
+        self._hidden_ranges = []
+        self._hidden_starts = []
         # Данные bookmark + цвета + иконки
         self.bookmark_data = []
         self.bookmark_blocks = set()
@@ -1384,7 +1420,6 @@ class LineNumberArea(QtWidgets.QWidget):
         self.icon_opacity = 0.0
         self.anim = QtCore.QPropertyAnimation(self, b'icon_opacity_prop')
         self.anim.setDuration(300)
-        self.editor.blockStateChanged.connect(self.update_folding_data)
         self.editor.blockStateChanged.connect(self.update_bookmark_data)
 
     def _update_cursor(self, old, new):
@@ -1437,51 +1472,6 @@ class LineNumberArea(QtWidgets.QWidget):
         self.bookmark_data = new_bookmarks
         self.bookmark_blocks = new_bookmark_blocks
 
-    @QtCore.Slot()
-    def update_folding_data(self, old_pos, new_pos, delta, is_added):
-
-        doc = self.editor.document()
-        structure = self.editor.block_structure
-        block_count = self.editor.blockCount()
-
-        start_pos = min(old_pos, new_pos)
-        start_block = doc.findBlock(start_pos)
-        start_block_num = start_block.blockNumber()
-
-        new_folding = []
-
-        for opener, folded_blocks in self.folding_data:
-
-            # --- 1. Блок вышел за пределы документа
-            if opener >= block_count:
-                continue
-
-            # --- 2. Добавление блоков
-            if is_added:
-                if opener >= start_block_num:
-                    opener += delta
-                    folded_blocks = [b + delta for b in folded_blocks]
-
-            # --- 3. Удаление блоков
-            else:
-                if opener > start_block_num:
-                    opener -= delta
-                    folded_blocks = [b - delta for b in folded_blocks]
-
-                elif opener == start_block_num:
-                    continue  # opener удалён → весь folding исчезает
-
-            # --- 4. Проверка, что opener всё ещё валиден
-            if opener < 0 or opener >= len(structure):
-                continue
-
-            if not structure[opener]['is_opener']:
-                continue
-
-            new_folding.append([opener, folded_blocks])
-
-        self.folding_data = new_folding
-
     def get_icon_opacity(self):
         return self.icon_opacity
 
@@ -1517,21 +1507,16 @@ class LineNumberArea(QtWidgets.QWidget):
             w = self.editor.line_number_area_width()
             x = event.pos().x()
             y = event.pos().y()
-            structure = self.editor.block_structure
             if x > w / 2:  # Fold - unfold по клику (плавая половина Line Number Area)
+                if self.editor._fold_revision != self.editor._applied_fold_revision:
+                    return
                 cursor = self.editor.cursorForPosition(QtCore.QPoint(0, y))
                 block_id = cursor.block().blockNumber()
-                if structure[block_id].get('is_opener'):
-                    if self.folding_data:
-                        for elem in self.folding_data:
-                            if block_id == elem[0]:
-                                self.unfold(block_id)
-                                return
-
-                    hiddens = self.fold(block_id)
-                    start = block_id
-                    self.folding_data.append([start, hiddens])
-                    # print(self.folding_data)  # Тест
+                if block_id in self.folded_ranges:
+                    self.unfold(block_id)
+                else:
+                    self.fold(block_id)
+                return
             else:  # Bookmark по клику (правая половина Line Number Area)
                 cursor = self.editor.cursorForPosition(QtCore.QPoint(0, y))
                 block_id = cursor.block().blockNumber()
@@ -1565,6 +1550,8 @@ class LineNumberArea(QtWidgets.QWidget):
 
                 # print(self.bookmark_data)  # Тестер
 
+            self.metadataChanged.emit()
+
         super().mousePressEvent(event)
 
     def wheelEvent(self, event):
@@ -1574,95 +1561,127 @@ class LineNumberArea(QtWidgets.QWidget):
         scroll_bar.setValue(scroll_bar.value() - scroll_bar.singleStep() * steps)
         event.accept()
 
-    # Свертывание по клику
+    @property
+    def folding_data(self):
+        if self.editor._fold_revision != self.editor._applied_fold_revision:
+            # A session can be saved before a pending analysis yields the new extents.
+            return [[opener, []] for anchor in self._fold_anchors
+                    if (opener := self._anchor_block(anchor)) >= 0]
+        return [[opener, list(range(start, end + 1))]
+                for opener, (start, end) in self.folded_ranges.items()]
+
+    def _fold_anchor(self, block_id):
+        block = self.editor.document().findBlockByNumber(block_id)
+        cursor = QtGui.QTextCursor(block)
+        text = block.text()
+        leading = len(text) - len(text.lstrip(' \t\f'))
+        cursor.setPosition(block.position() + leading)
+        cursor.movePosition(QtGui.QTextCursor.MoveOperation.NextCharacter,
+                            QtGui.QTextCursor.MoveMode.KeepAnchor)
+        return cursor
+
+    def _anchor_block(self, anchor):
+        if not anchor.hasSelection():
+            return -1
+        return self.editor.document().findBlock(anchor.selectionEnd() - 1).blockNumber()
+
     def fold(self, block_id):
-        id = block_id
-        structure = self.editor.block_structure
-        start_level = structure[block_id]['level']
-        start_indent = structure[block_id]['indent']
-        hiddens = []
-        doc = self.editor.document()
+        editor = self.editor
+        if editor._fold_revision != editor._applied_fold_revision:
+            return
+        if (0 <= block_id < len(editor.block_structure)
+                and editor.block_structure[block_id]['is_opener']
+                and block_id not in self.folded_ranges):
+            self._fold_anchors.append(self._fold_anchor(block_id))
+            self.refresh_folds()
+            if not editor.textCursor().block().isVisible():
+                header = editor.document().findBlockByNumber(block_id)
+                editor.setTextCursor(QtGui.QTextCursor(header))
 
-        while True:
-            id += 1
-            # Предохранители (выход за пределы id, пустой уровень, уменьш. отступ, одноуровневые старты)
-            if id >= len(structure):
-                break
-            if structure[id]['level'] is None:
-                break
-            if structure[id]['indent'] < start_indent:
-                break
-            if structure[id]['is_opener'] and structure[id]['indent'] == start_indent:
-                break
-
-            # Одинаковый уровень + открывания (блоки на одном уровне)
-            if structure[id]['is_opener'] and structure[id]['level'] == start_level:
-                break
-            elif not structure[id]['is_opener'] and structure[id]['level'] < start_level:
-                break
-            elif not structure[id]['is_opener'] and structure[id]['level'] == start_level:
-                block = self.editor.document().findBlockByNumber(id)
-                hiddens.append(id)
-                block.setVisible(False)
-
-                doc.markContentsDirty(block.position(), block.length())
-            elif not structure[id]['is_opener'] and structure[id]['level'] > start_level:
-                if structure[id]['indent'] > start_indent:
-                    block = self.editor.document().findBlockByNumber(id)
-                    hiddens.append(id)
-                    block.setVisible(False)
-                    doc.markContentsDirty(block.position(), block.length())
-                else:
-                    break
-            elif structure[id]['is_opener'] and structure[id]['level'] > start_level:
-                block = self.editor.document().findBlockByNumber(id)
-                hiddens.append(id)
-                block.setVisible(False)
-                doc.markContentsDirty(block.position(), block.length())
-
-        rev_hiddens = hiddens[::-1]
-        for i, idx in enumerate(rev_hiddens):
-            block = self.editor.document().findBlockByNumber(idx)
-            text = block.text()
-            if text.strip() == '':
-                rev_hiddens.pop(i)
-                block.setVisible(True)
-            else:
-                break
-        return rev_hiddens[::-1]
-
-    # Развертывание по клику
     def unfold(self, block_id):
-        if self.folding_data:
-            for index, elem in enumerate(self.folding_data):
-                if block_id == elem[0]:
-                    grab = elem[1]
-                    for b in grab:
-                        block = self.editor.document().findBlockByNumber(b)
-                        block.setVisible(True)
-                        doc = self.editor.document()
-                        doc.markContentsDirty(block.position(), block.length())
-                    self.folding_data.pop(index)
+        self._fold_anchors = [
+            anchor for anchor in self._fold_anchors if self._anchor_block(anchor) != block_id
+        ]
+        if self.editor._fold_revision == self.editor._applied_fold_revision:
+            self.refresh_folds()
 
-            for elem in self.folding_data:
-                grab = elem[1]
-                for b in grab:
-                    block = self.editor.document().findBlockByNumber(b)
-                    block.setVisible(False)
-                    doc = self.editor.document()
-                    doc.markContentsDirty(block.position(), block.length())
+    def unfold_all(self):
+        self._fold_anchors.clear()
+        self._apply_fold_visibility({})
+        self.metadataChanged.emit()
 
-    # Расчет фолдинга при загрузке
     def calculate_folding(self, fold_data):
-        self.folding_data = fold_data
-        if self.folding_data:
-            for folder in self.folding_data:
-                list_to_folding = folder[1]
-                for idx in list_to_folding:
-                    block = self.editor.document().findBlockByNumber(idx)
+        self._fold_anchors = [self._fold_anchor(opener) for opener, _ in fold_data]
+        if self.editor._fold_revision == self.editor._applied_fold_revision:
+            self.refresh_folds()
+
+    def refresh_folds(self):
+        structure = self.editor.block_structure
+        anchors = []
+        ranges = {}
+        for anchor in self._fold_anchors:
+            opener = self._anchor_block(anchor)
+            if 0 <= opener < len(structure) and structure[opener]['is_opener']:
+                header = structure[opener]
+                if opener not in ranges:
+                    anchors.append(anchor)
+                    ranges[opener] = (header['body_start'], header['end'])
+        self._fold_anchors = anchors
+        changed = ranges != self.folded_ranges
+        self._apply_fold_visibility(ranges)
+        if changed:
+            self.metadataChanged.emit()
+
+    def next_visible_fold_block(self, number):
+        index = bisect_right(self._hidden_starts, number) - 1
+        if index >= 0 and number <= self._hidden_ranges[index][1]:
+            return self._hidden_ranges[index][1] + 1
+        return number
+
+    def last_visible_fold_block(self, number):
+        index = bisect_right(self._hidden_starts, number) - 1
+        if index >= 0 and number <= self._hidden_ranges[index][1]:
+            return self._hidden_ranges[index][0] - 1
+        return number
+
+    def _apply_fold_visibility(self, ranges):
+        doc = self.editor.document()
+        merged = []
+        for start, end in sorted(ranges.values()):
+            if merged and start <= merged[-1][1] + 1:
+                merged[-1][1] = max(merged[-1][1], end)
+            else:
+                merged.append([start, end])
+
+        hidden = {}
+        changed_first = doc.characterCount()
+        changed_last = 0
+        for start, end in merged:
+            block = doc.findBlockByNumber(start)
+            for number in range(start, end + 1):
+                hidden[number] = block
+                if block.isVisible():
                     block.setVisible(False)
-                    doc = self.editor.document()
-                    doc.markContentsDirty(block.position(), block.length())
+                    block.setLineCount(0)
+                    changed_first = min(changed_first, block.position())
+                    changed_last = max(changed_last, block.position() + block.length())
+                block = block.next()
+
+        for block in self._hidden_blocks:
+            if block.isValid() and block.blockNumber() not in hidden:
+                block.setVisible(True)
+                block.setLineCount(max(1, block.layout().lineCount()))
+                changed_first = min(changed_first, block.position())
+                changed_last = max(changed_last, block.position() + block.length())
+        self._hidden_blocks = list(hidden.values())
+        self.folded_ranges = ranges
+        self._hidden_ranges = merged
+        self._hidden_starts = [start for start, _ in merged]
+
+        if changed_last > changed_first:
+            doc.markContentsDirty(changed_first, changed_last - changed_first)
+        self.editor.viewport().update()
+        self.update()
 
     # Расчет бук- подсветки при загрузке
     def calculate_books(self, book_data):

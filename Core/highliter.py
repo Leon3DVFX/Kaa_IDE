@@ -19,11 +19,6 @@ class EditorHighlighter(QtGui.QSyntaxHighlighter):
         self.in_stringFormat = InStringFormat()  #strings_in
         self.numericFormat = NumericFormat()  #numeric
         self.customFuncFormat = CustomFuncFormat()  #custom functions
-        #Элементы
-        self.key = elements.get("keywords", [])
-        self.func = elements.get("builtins", [])
-        self.magic = elements.get("magic", [])
-        self.modules = elements.get("modules", [])
         #Пред-компиляция REGEX
         #Строки
         self.str_patterns = [
@@ -35,11 +30,20 @@ class EditorHighlighter(QtGui.QSyntaxHighlighter):
             r'\\[abfnrtv\\\'"]|\\x[0-9A-Fa-f]{2}|\\u[0-9A-Fa-f]{4}|\\U[0-9A-Fa-f]{8}|\\N\{[A-Za-z0-9 '
             r'_-]+\}|\\[0-7]{1,3}')  #Для спец. символов
         #Ключевые слова
-        self.key_pattern = []
-        self.key_pattern.extend(self.get_pattern(self.key, self.keyWFormat))
-        self.key_pattern.extend(self.get_pattern(self.func, self.funcFormat))
-        self.key_pattern.extend(self.get_pattern(self.magic, self.magicFormat))
-        self.key_pattern.extend(self.get_pattern(self.modules, self.stdModFormat))
+        self.keyword_formats = {}
+        for category, text_format in (
+            ('keywords', self.keyWFormat),
+            ('builtins', self.funcFormat),
+            ('magic', self.magicFormat),
+            ('modules', self.stdModFormat),
+        ):
+            # Later categories override earlier ones when a name appears twice.
+            for word in elements.get(category, []):
+                self.keyword_formats[word] = text_format
+        alternatives = '|'.join(QtCore.QRegularExpression.escape(word)
+                                for word in self.keyword_formats)
+        pattern = rf'\b(?:{alternatives})\b' if alternatives else r'(?!)'
+        self.keyword_pattern = QtCore.QRegularExpression(pattern)
         #Комментарии
         self.comment_pattern = QtCore.QRegularExpression(r'#.*')
         #Цифры int-float
@@ -60,13 +64,6 @@ class EditorHighlighter(QtGui.QSyntaxHighlighter):
             QtCore.QRegularExpression(r'\b(class)\s+([A-Za-z_]\w*)\b')  #для class
         ]
 
-    def get_pattern(self, e=None, f=None):
-        keyword_pattern = []
-        for keyword in e:
-            pattern = QtCore.QRegularExpression(r'\b' + keyword + r'\b')
-            keyword_pattern.append((pattern, f))
-        return keyword_pattern
-
     def highlightBlock(self, text):
         self.string_ranges = []
         # 5. Цифры
@@ -74,7 +71,7 @@ class EditorHighlighter(QtGui.QSyntaxHighlighter):
         # 4. Кастомные функции
         self.activateCustomFunctions(text)
         # 3. Ключевые слова
-        self.activateKeyword(text, pat_and_formats=self.key_pattern)
+        self.activateKeyword(text)
 
         # 2.Comments (самый верхний приоритет)
         comment_pattern = self.comment_pattern
@@ -90,15 +87,12 @@ class EditorHighlighter(QtGui.QSyntaxHighlighter):
         self.activateMultiStringsOne(text)
 
     # Подсветка по ключевым словам
-    def activateKeyword(self, text=None, pat_and_formats=None):
-        for p, f in pat_and_formats:
-            expr = p
-            it = expr.globalMatch(text)
-            while it.hasNext():
-                match = it.next()
-                start = match.capturedStart()
-                length = match.capturedLength()
-                self.setFormat(start, length, f)
+    def activateKeyword(self, text):
+        matches = self.keyword_pattern.globalMatch(text)
+        while matches.hasNext():
+            match = matches.next()
+            text_format = self.keyword_formats[match.captured()]
+            self.setFormat(match.capturedStart(), match.capturedLength(), text_format)
 
     # Подсветка строк (ОДНОСТРОЧНЫЙ РЕЖИМ)
     def activateStrings(self, text):

@@ -1,329 +1,250 @@
-import os, pickle, base64
+import json
+import logging
+import os
+import re
 from importlib import resources
+
 from PySide6 import QtCore
 
 temp_dir = str(resources.files('Kaa_IDE.Core').joinpath('temp'))
+logger = logging.getLogger(__name__)
+
+SESSION_FORMAT = 'Kaa_IDE'
+SESSION_VERSION = 1
+BOOKMARK_COLOR_COUNT = 6
+QT_INT_MAX = 2**31 - 1
+QT_WIDGET_MAX_SIZE = 16777215
+SESSION_ERRORS = (OSError, ValueError, RecursionError)
+
+
+def _check(condition, message):
+    if not condition:
+        raise ValueError(message)
+
+
+def _integer(value, lower, upper):
+    return type(value) is int and lower <= value <= upper
+
+
+def _keys(value, required, optional=()):
+    return isinstance(value, dict) and required <= value.keys() <= required.union(optional)
+
+
+def _validate_session(session):
+    _check(_keys(session, {'format', 'version', 'tabs'}, {'window'}), 'Invalid session header.')
+    _check(session['format'] == SESSION_FORMAT, 'Unknown session format.')
+    _check(_integer(session['version'], SESSION_VERSION, SESSION_VERSION),
+           'Unsupported session version.')
+
+    tabs = session['tabs']
+    _check(isinstance(tabs, list) and tabs, 'A session must contain at least one tab.')
+    for index, tab in enumerate(tabs, 1):
+        _check(_keys(tab, {'name', 'text', 'cursor', 'bookmarks', 'folds'}),
+               f'Invalid structure in tab {index}.')
+        _check(isinstance(tab['name'], str) and isinstance(tab['text'], str),
+               f'Invalid name or text in tab {index}.')
+        tab['name'].encode('utf-8')
+        # QTextDocument represents CRLF, CR and paragraph separators as block boundaries.
+        code = tab['text'].replace('\r\n', '\n').replace('\r', '\n').replace('\u2029', '\n')
+        tab['text'] = code
+        last_cursor = min(len(code.encode('utf-16-le')) // 2, QT_INT_MAX - 1)
+        _check(_integer(tab['cursor'], 0, last_cursor), f'Invalid cursor in tab {index}.')
+
+        last_line = code.count('\n')
+        bookmarks = tab['bookmarks']
+        _check(isinstance(bookmarks, list), f'Invalid bookmarks in tab {index}.')
+        for bookmark in bookmarks:
+            _check(isinstance(bookmark, list) and len(bookmark) == 2
+                   and _integer(bookmark[0], 0, last_line)
+                   and _integer(bookmark[1], 0, BOOKMARK_COLOR_COUNT - 1),
+                   f'Invalid bookmark in tab {index}.')
+
+        folds = tab['folds']
+        _check(isinstance(folds, list), f'Invalid folds in tab {index}.')
+        for fold in folds:
+            _check(isinstance(fold, list) and len(fold) == 2
+                   and _integer(fold[0], 0, last_line) and isinstance(fold[1], list),
+                   f'Invalid fold in tab {index}.')
+            _check(all(_integer(line, fold[0] + 1, last_line) for line in fold[1]),
+                   f'Invalid folded lines in tab {index}.')
+
+    if 'window' in session:
+        window = session['window']
+        _check(_keys(window, {'x', 'y', 'width', 'height', 'work_dir'}),
+               'Invalid window settings.')
+        for axis in ('x', 'y'):
+            _check(_integer(window[axis], -QT_INT_MAX - 1, QT_INT_MAX),
+                   f'Invalid window coordinate {axis}.')
+        for dimension in ('width', 'height'):
+            _check(_integer(window[dimension], 1, QT_WIDGET_MAX_SIZE),
+                   f'Invalid window {dimension}.')
+        directory = window['work_dir']
+        _check(isinstance(directory, str) and directory and '\0' not in directory,
+               'Invalid working directory.')
+        directory.encode('utf-8')
+    return session
+
+
+def _legacy_line(stream):
+    line = stream.readline()
+    return line.removesuffix(b'\n').removesuffix(b'\r') if line else None
+
+
+def _legacy_tab_name(stream, index):
+    if _legacy_line(stream) != f'<index> = {index}'.encode('ascii'):
+        return None
+    name = _legacy_line(stream)
+    cursor = _legacy_line(stream)
+    if (name is not None and name.startswith(b'<win_name> = ')
+            and cursor is not None and cursor.startswith(b'<cursor_position> = ')
+            and _legacy_line(stream) == b'<text_start>'):
+        return name.removeprefix(b'<win_name> = ')
+    return None
+
+
+def _read_legacy(stream):
+    # Only the old framing is read. Values outside the tab name and text are ignored.
+    count = re.fullmatch(rb'<wins_count> = ([0-9]+)', _legacy_line(stream) or b'')
+    _check(count is not None and int(count[1]) > 0, 'Invalid legacy tab count.')
+    tab_count = int(count[1])
+    while True:
+        offset = stream.tell()
+        header = _legacy_line(stream)
+        if header is None or not header.startswith((
+            b'<WORK_DIRECTORY> = ', b'<X_POS> = ', b'<Y_POS> = ',
+            b'<WIDTH> = ', b'<HEIGHT> = ',
+        )):
+            stream.seek(offset)
+            break
+
+    tabs = []
+    for index in range(tab_count):
+        name = _legacy_tab_name(stream, index)
+        _check(name is not None, 'Invalid legacy tab header.')
+
+        code_lines = []
+        while (line := _legacy_line(stream)) is not None:
+            if line == b'<text_end>':
+                offset = stream.tell()
+                following = _legacy_line(stream)
+                if following is None or following in (
+                    b'<PICKLE_DATA_BOOKMARKS>', b'<PICKLE_DATA_FOLDING>',
+                ):
+                    _check(index + 1 == tab_count, 'Invalid legacy tab count.')
+                    break
+                stream.seek(offset)
+                if _legacy_tab_name(stream, index + 1) is not None:
+                    _check(index + 1 < tab_count, 'Invalid legacy tab count.')
+                    stream.seek(offset)
+                    break
+                stream.seek(offset)
+            code_lines.append(line)
+        else:
+            raise ValueError('Missing legacy tab closing marker.')
+
+        tabs.append({
+            'name': name.decode('utf-8'),
+            'text': b'\n'.join(code_lines).decode('utf-8'),
+            'cursor': 0, 'bookmarks': [], 'folds': [],
+        })
+
+    return {'format': SESSION_FORMAT, 'version': SESSION_VERSION, 'tabs': tabs}
+
+
+def _read_session(path):
+    legacy_prefix = b'<wins_count> = '
+    with open(path, 'rb') as stream:
+        if stream.peek(len(legacy_prefix)).startswith(legacy_prefix):
+            return _validate_session(_read_legacy(stream))
+        return _validate_session(json.loads(stream.read().decode('utf-8-sig')))
+
+
+def _save_session(path, session):
+    data = json.dumps(_validate_session(session), ensure_ascii=False).encode('utf-8')
+    file = QtCore.QSaveFile(os.fspath(path))
+    if not file.open(QtCore.QIODevice.OpenModeFlag.WriteOnly):
+        raise OSError(file.errorString())
+    if file.write(data) != len(data):
+        message = file.errorString()
+        file.cancelWriting()
+        raise OSError(message)
+    if not file.commit():
+        raise OSError(file.errorString())
+
+
+def _snapshot(mdi_area):
+    tabs = []
+    for subwindow in mdi_area.subWindowList():
+        editor = subwindow.widget().editor
+        gutter = editor.line_number_area
+        last_line = editor.blockCount() - 1
+        # Editing can leave stale line numbers in a fold's list of hidden blocks.
+        folds = [
+            [opener, [line for line in hidden if opener < line <= last_line]]
+            for opener, hidden in gutter.folding_data
+            if 0 <= opener <= last_line
+        ]
+        tabs.append({
+            'name': subwindow.windowTitle(),
+            'text': editor.document().toRawText().replace('\u2029', '\n'),
+            'cursor': editor.textCursor().position(),
+            'bookmarks': gutter.bookmark_data,
+            'folds': folds,
+        })
+    return {'format': SESSION_FORMAT, 'version': SESSION_VERSION, 'tabs': tabs}
 
 
 class TempSystem:
-    def __init__(self, parent=None):
-        self.pickle_separator_folding = '<PICKLE_DATA_FOLDING>\n'
-        self.pickle_separator_bookmarks = '<PICKLE_DATA_BOOKMARKS>\n'
-        self.fold_obj = None
-        self.mdi = parent
+    def __init__(self):
+        self.x = self.y = 0
+        self.width, self.height = 400, 600
         self.work_dir = os.getcwd()
 
-        #Предкомпиляция регулярок
-        self.pattern_wins_count = QtCore.QRegularExpression(r'<wins_count> = (\d+)')
-        self.pattern_x_pos = QtCore.QRegularExpression(r'<X_POS> = (\d+)')
-        self.pattern_y_pos = QtCore.QRegularExpression(r'<Y_POS> = (\d+)')
-        self.pattern_width = QtCore.QRegularExpression(r'<WIDTH> = (\d+)')
-        self.pattern_height = QtCore.QRegularExpression(r'<HEIGHT> = (\d+)')
-        self.pattern_work_dir = QtCore.QRegularExpression(r'<WORK_DIRECTORY> = (.+)')
-
-        # Пробуем восстановить позицию по файлу (если он есть)
+    def save_temp_file(self, mdi_area):
+        parent = mdi_area.parent()
+        launcher = parent.parent() if parent else None
+        position = launcher.pos() if launcher else parent.pos() if parent else mdi_area.pos()
+        size = parent.size() if parent else mdi_area.size()
+        session = _snapshot(mdi_area)
+        session['window'] = {
+            'x': position.x(), 'y': position.y(), 'width': size.width(), 'height': size.height(),
+            'work_dir': self.work_dir,
+        }
         try:
-            with open(temp_dir + r'\main_temp.kaa', 'r', encoding='utf-8') as file:
-                self.last_loaded = file.read()
-            mx = self.pattern_x_pos.match(self.last_loaded)
-            self.x = int(mx.captured(1))
-            if self.x < 0:
-                self.x = 0
-            my = self.pattern_y_pos.match(self.last_loaded)
-            self.y = int(my.captured(1))
-            if self.y < 0:
-                self.y = 0
-            mw = self.pattern_width.match(self.last_loaded)
-            self.width = int(mw.captured(1))
-            mh = self.pattern_height.match(self.last_loaded)
-            self.height = int(mh.captured(1))
-            wd = self.pattern_work_dir.match(self.last_loaded)
-            self.work_dir = wd.captured(1)
-        # Если нету - создадим
+            os.makedirs(temp_dir, exist_ok=True)
+            _save_session(os.path.join(temp_dir, 'main_temp.kaa'), session)
+        except SESSION_ERRORS as error:
+            logger.warning('Could not save the Kaa autosession: %s', error)
+
+    def load_temp_file(self, mdi_area):
+        try:
+            session = _read_session(os.path.join(temp_dir, 'main_temp.kaa'))
         except FileNotFoundError:
-            self.last_loaded = None
-            self.x = 0
-            self.y = 0
-            self.width = 400
-            self.height = 600
-
-        # Пооконный парсер (регулярка)
-        self.pattern_block = QtCore.QRegularExpression(
-            r'<index> = (\d+)\s*<win_name> = (\S*)\s*<cursor_position> = (\d+)\s*',
-            QtCore.QRegularExpression.PatternOption.DotMatchesEverythingOption
-        )
-        self.pattern_text = QtCore.QRegularExpression(
-            r'<text_start>\s(.*?\s*)\s<text_end>',
-            QtCore.QRegularExpression.PatternOption.DotMatchesEverythingOption
-        )
-
-        self.pattern_bookmarks = QtCore.QRegularExpression(
-            r'<PICKLE_DATA_BOOKMARKS>\s(\S+)\s',
-            QtCore.QRegularExpression.PatternOption.DotMatchesEverythingOption
-        )
-
-    def save_temp_file(self, mdi_area=None):
-        # Создание папки если не существует
-        os.makedirs(temp_dir, exist_ok=True)
-        # Запись temp файла
-        with open(temp_dir + r'\main_temp.kaa', 'w+', encoding='utf-8') as file:
-            file.write(f'<wins_count> = {len(mdi_area.subWindowList())}\n')
-            file.write(f'<WORK_DIRECTORY> = {self.work_dir}\n')
-            file.write(f'<X_POS> = {mdi_area.parent().parent().pos().x()}\n')
-            file.write(f'<Y_POS> = {mdi_area.parent().parent().pos().y()}\n')
-            file.write(f'<WIDTH> = {mdi_area.parent().width()}\n')
-            file.write(f'<HEIGHT> = {mdi_area.parent().height()}\n')
-
-        with open(temp_dir + r'\main_temp.kaa', 'a+', encoding='utf-8') as file:
-            for i, subwindow in enumerate(mdi_area.subWindowList()):
-                file.write(f'<index> = {i}\n')
-                file.write(f'<win_name> = {subwindow.windowTitle()}\n')
-                text = subwindow.widget().editor.toPlainText()
-                cursor_position = subwindow.widget().editor.textCursor().position()
-                file.write(f'<cursor_position> = {cursor_position}\n')
-                file.write('<text_start>\n')
-                file.write(text + '\n')
-                file.write('<text_end>\n')
-        # Пиклы с данными фолдинга
-        all_folds = []
-        all_books = []
-        with open(temp_dir + r'\main_temp.kaa', 'a+', encoding='utf-8') as file:
-            subwindows = mdi_area.subWindowList()
-            for subwindow in subwindows:
-                fold_data = subwindow.widget().editor.line_number_area.folding_data
-                book_data = subwindow.widget().editor.line_number_area.bookmark_data
-                if not fold_data:
-                    fold_data = None
-                all_folds.append(fold_data)
-                if not book_data:
-                    book_data = None
-                all_books.append(book_data)
-
-            pickled_folds = pickle.dumps(all_folds)
-            encoded_folds = base64.b64encode(pickled_folds).decode('utf-8')
-
-            pickled_books = pickle.dumps(all_books)
-            encoded_books = base64.b64encode(pickled_books).decode('utf-8') + '\n'
-            file.write(self.pickle_separator_bookmarks)
-            file.write(encoded_books)
-            file.write(self.pickle_separator_folding)
-            file.write(encoded_folds)
-
-    def load_temp_file(self, mdi_area=None):
-        # Создание папки если не существует
-        os.makedirs(temp_dir, exist_ok=True)
-        #Проверка наличия файлов в папке temp (пока что этого будет достаточно)
-        if not len(os.listdir(temp_dir)):
             return
+        except SESSION_ERRORS as error:
+            logger.warning('Could not load the Kaa autosession: %s', error)
+            return
+        if 'window' in session:
+            window = session['window']
+            self.x, self.y = window['x'], window['y']
+            self.width, self.height = window['width'], window['height']
+            self.work_dir = window['work_dir']
+        mdi_area.restore_tabs(session['tabs'])
 
-        with open(temp_dir + r'\main_temp.kaa', 'r', encoding='utf-8') as file:
-            self.last_loaded = file.read()
+    def save_kaa_file(self, mdi_area, path):
+        _save_session(path, _snapshot(mdi_area))
 
-        # Парсинг (общее число окон для создания)
-        num_expr = self.pattern_wins_count
-        it = num_expr.globalMatch(self.last_loaded)
-        n = 0
-        while it.hasNext():
-            match = it.next()
-            n = int(match.captured(1))
-        # Удаление всех предыдущих окон
-        mdi_area.closeAllSubWindows()
-        # Воссоздание численности окон
-        for i in range(n - 1):
-            mdi_area.new_tab()
-        # Парсинг и восстановление блоков
-        it_wins = self.pattern_block.globalMatch(self.last_loaded)
-        it_text = self.pattern_text.globalMatch(self.last_loaded)
-        while it_wins.hasNext() and it_text.hasNext():
-            p_match = it_wins.next()
-            t_match = it_text.next()
-            index = int(p_match.captured(1))
-            win_name = str(p_match.captured(2)).strip()
-            cursor_pos = int(p_match.captured(3))
-            text = t_match.captured(1)
-            # Восстановление окна по индексу
-            mdi_area.restore_window(index, text, cursor_pos, win_name)
-        #Загрузка пиклов
-        # Буки + подсветка
-        all_books = None
-        book_expr = self.pattern_bookmarks
-        book_match = book_expr.match(self.last_loaded)
-        if book_match.hasMatch():
-            pickled_books = book_match.captured(1)
-            decoded_books = base64.b64decode(pickled_books)
-            try:
-                all_books = pickle.loads(decoded_books)
-            except Exception:
-                all_books = None
-        if all_books:
-            subwindows = mdi_area.subWindowList()
-            for i, subwindow in enumerate(subwindows):
-                book_data = all_books[i]
+    def load_kaa_file(self, mdi_area, path):
+        session = _read_session(path)
+        self.work_dir = os.path.dirname(os.path.abspath(path))
+        mdi_area.restore_tabs(session['tabs'])
+        mdi_area.save_session()
 
-                if not book_data:
-                    continue
-                lna = subwindow.widget().editor.line_number_area
-                lna.calculate_books(book_data)
-
-        # Фолдеры
-        all_folds = None
-        if self.pickle_separator_folding in self.last_loaded:
-            parts = self.last_loaded.split(self.pickle_separator_folding)
-            if len(parts) > 1:
-                pickled = parts[1]
-                decoded = base64.b64decode(pickled)
-                try:
-                    all_folds = pickle.loads(decoded)
-                except Exception:
-                    all_folds = None
-        if all_folds:
-            subwindows = mdi_area.subWindowList()
-            for i, subwindow in enumerate(subwindows):
-                fold_data = all_folds[i]
-
-                if not fold_data:
-                    continue
-
-                lna = subwindow.widget().editor.line_number_area
-                lna.calculate_folding(fold_data)
-
-    # Сохранение в Py файлы
     def save_py_file(self, mdi_area=None, path=None):
         with open(path, 'w+', encoding='utf-8') as file:
             editor = mdi_area.activeSubWindow().widget().editor
             text = editor.toPlainText()
             file.write(text)
-
-    # Сохранение в фаил полной версии
-    def save_kaa_file(self, mdi_area=None, path=None):
-        # Запись kaa файла
-        with open(path, 'w+', encoding='utf-8') as file:
-            file.write(f'<wins_count> = {len(mdi_area.subWindowList())}\n')
-
-        with open(path, 'a+', encoding='utf-8') as file:
-            for i, subwindow in enumerate(mdi_area.subWindowList()):
-                file.write(f'<index> = {i}\n')
-                file.write(f'<win_name> = {subwindow.windowTitle()}\n')
-                text = subwindow.widget().editor.toPlainText()
-                cursor_position = subwindow.widget().editor.textCursor().position()
-                file.write(f'<cursor_position> = {cursor_position}\n')
-                file.write('<text_start>\n')
-                file.write(text + '\n')
-                file.write('<text_end>\n')
-        # Пиклы с данными фолдинга
-        all_folds = []
-        all_books = []
-        with open(path, 'a+', encoding='utf-8') as file:
-            subwindows = mdi_area.subWindowList()
-            for subwindow in subwindows:
-                fold_data = subwindow.widget().editor.line_number_area.folding_data
-                book_data = subwindow.widget().editor.line_number_area.bookmark_data
-                if not fold_data:
-                    fold_data = None
-                all_folds.append(fold_data)
-                if not book_data:
-                    book_data = None
-                all_books.append(book_data)
-
-            pickled_folds = pickle.dumps(all_folds)
-            encoded_folds = base64.b64encode(pickled_folds).decode('utf-8')
-
-            pickled_books = pickle.dumps(all_books)
-            encoded_books = base64.b64encode(pickled_books).decode('utf-8') + '\n'
-            file.write(self.pickle_separator_bookmarks)
-            file.write(encoded_books)
-            file.write(self.pickle_separator_folding)
-            file.write(encoded_folds)
-
-    # Загрузка полной версии из файла
-    def load_kaa_file(self, mdi_area=None, path=None):
-        # 1. Удаление всех предыдущих окон
-        mdi_area.closeAllSubWindows()
-        # 2. Чтение файла
-        with open(path, 'r', encoding='utf-8') as file:
-            self.last_loaded = file.read()
-        # 3. Отложенное восстановление окон
-        QtCore.QTimer.singleShot(
-            0,
-            lambda: self._restore_windows_phase(mdi_area)
-        )
-
-    # Восстановление окон под таймер (смена фазы для MDI)
-    def _restore_windows_phase(self, mdi_area):
-        # Парсинг (общее число окон для создания)
-        it = self.pattern_wins_count.globalMatch(self.last_loaded)
-        n = 0
-        while it.hasNext():
-            match = it.next()
-            n = int(match.captured(1))
-
-        # Воссоздание численности окон
-        for i in range(n - 1):
-            mdi_area.new_tab()
-
-        # Парсинг и восстановление блоков
-        it_wins = self.pattern_block.globalMatch(self.last_loaded)
-        it_text = self.pattern_text.globalMatch(self.last_loaded)
-        while it_wins.hasNext() and it_text.hasNext():
-            p_match = it_wins.next()
-            t_match = it_text.next()
-            index = int(p_match.captured(1))
-            win_name = str(p_match.captured(2)).strip()
-            cursor_pos = int(p_match.captured(3))
-            text = t_match.captured(1)
-            # Восстановление окна по индексу
-            mdi_area.restore_window(index, text, cursor_pos, win_name)
-        # Фаза восстановления бук-фолдеров
-        QtCore.QTimer.singleShot(
-            0,
-            lambda: self._restore_meta_phase(mdi_area)
-        )
-
-    # Восстановление бук-фолдеров (смена фазы под MDI)
-    def _restore_meta_phase(self, mdi_area):
-        # Загрузка пиклов
-        # Буки + подсветка
-        all_books = None
-        book_expr = self.pattern_bookmarks
-        book_match = book_expr.match(self.last_loaded)
-        if book_match.hasMatch():
-            pickled_books = book_match.captured(1)
-            decoded_books = base64.b64decode(pickled_books)
-            try:
-                all_books = pickle.loads(decoded_books)
-            except Exception:
-                all_books = None
-        if all_books:
-            subwindows = mdi_area.subWindowList()
-            for i, subwindow in enumerate(subwindows):
-                book_data = all_books[i]
-
-                if not book_data:
-                    continue
-                lna = subwindow.widget().editor.line_number_area
-                lna.calculate_books(book_data)
-
-        # Фолдеры
-        all_folds = None
-        if self.pickle_separator_folding in self.last_loaded:
-            parts = self.last_loaded.split(self.pickle_separator_folding)
-            if len(parts) > 1:
-                pickled = parts[1]
-                decoded = base64.b64decode(pickled)
-                try:
-                    all_folds = pickle.loads(decoded)
-                except Exception:
-                    all_folds = None
-        if all_folds:
-            subwindows = mdi_area.subWindowList()
-            for i, subwindow in enumerate(subwindows):
-                fold_data = all_folds[i]
-
-                if not fold_data:
-                    continue
-
-                lna = subwindow.widget().editor.line_number_area
-                lna.calculate_folding(fold_data)
 
     def load_py_files(self, mdi_area=None, paths=None):
         for path in paths:
@@ -341,7 +262,3 @@ class TempSystem:
             editor = mdi_area.activeSubWindow().widget().editor
             mdi_area.activeSubWindow().setWindowTitle(name)
             editor.setPlainText(text)
-
-
-if __name__ == '__main__':
-    print(temp_dir)

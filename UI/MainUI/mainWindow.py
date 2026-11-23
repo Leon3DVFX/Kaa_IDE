@@ -1,4 +1,4 @@
-import io, traceback, sys, re
+import io, os, traceback, sys, re
 
 from PySide6 import QtWidgets, QtCore, QtGui
 
@@ -6,7 +6,7 @@ from Kaa_IDE.UI.MainUI.editorWidget import Editor
 from Kaa_IDE.UI.MainUI.logWidget import Logout
 
 from Kaa_IDE.Core.loaders import iconLoader, pixmapLoader, cssLoader
-from Kaa_IDE.Core.temp import TempSystem
+from Kaa_IDE.Core.temp import SESSION_ERRORS, TempSystem
 from Kaa_IDE.Core.inspector import inspect_attr
 from Kaa_IDE.UI.Styles.tab_bar import css as tab_css
 from Kaa_IDE.Docs.Help.help import HelpWidget
@@ -177,20 +177,22 @@ class MainButton(QtWidgets.QWidget):
 
     # Функция сохранения Py
     def save_python_to_file(self, path):
-        self.mdi_area.temp.work_dir = path
-        self.save_py.setDirectory(path)
         self.mdi_area.temp.save_py_file(self.mdi_area, path)
+        self.mdi_area.temp.work_dir = os.path.dirname(os.path.abspath(path))
+        self.save_py.setDirectory(self.mdi_area.temp.work_dir)
 
     # Функция сохранения Kaa
     def save_kaa_to_file(self, path):
-        self.mdi_area.temp.work_dir = path
-        self.save_kaa.setDirectory(path)
-        self.mdi_area.temp.save_kaa_file(self.mdi_area, path)
+        try:
+            self.mdi_area.temp.save_kaa_file(self.mdi_area, path)
+        except SESSION_ERRORS as error:
+            QtWidgets.QMessageBox.warning(self.mainWindow, 'Could not save Kaa session', str(error))
+            return
+        self.mdi_area.temp.work_dir = os.path.dirname(os.path.abspath(path))
+        self.save_kaa.setDirectory(self.mdi_area.temp.work_dir)
 
     # Функция загрузки Kaa
     def load_kaa_from_file(self, path):
-        self.mdi_area.temp.work_dir = path
-        self.load_kaa.setDirectory(path)
         # Проверка наличия текста в одном из окон
         subwindows = self.mdi_area.subWindowList()
         message = None
@@ -214,12 +216,16 @@ class MainButton(QtWidgets.QWidget):
                 break
 
         if message == QtWidgets.QMessageBox.StandardButton.Yes or message is None:
-            # Загрузка Kaa
-            self.mdi_area.temp.load_kaa_file(self.mdi_area, path)
+            try:
+                self.mdi_area.temp.load_kaa_file(self.mdi_area, path)
+            except SESSION_ERRORS as error:
+                QtWidgets.QMessageBox.warning(self.mainWindow, 'Could not load Kaa session', str(error))
+                return
+            self.load_kaa.setDirectory(self.mdi_area.temp.work_dir)
 
     # Загрузка Python в новые табы
     def load_py_from_file(self, paths):
-        self.mdi_area.temp.work_dir = paths[-1]
+        self.mdi_area.temp.work_dir = os.path.dirname(os.path.abspath(paths[-1]))
         self.mdi_area.temp.load_py_files(self.mdi_area, paths)
 
     # Реализация свободного перетаскивания за кнопку
@@ -278,7 +284,7 @@ class MainButton(QtWidgets.QWidget):
     def closeEvent(self, event):
         if hasattr(self, 'mainWindow') and self.mainWindow is not None:
             mdi_area = self.mainWindow.findChild(QtWidgets.QMdiArea)
-            mdi_area.temp.save_temp_file(mdi_area)
+            mdi_area.save_session()
             self.x_button.state = 'normal'
             self.state = 'hide'
             self.mainWindow.close()
@@ -384,16 +390,15 @@ class MDIArea(QtWidgets.QMdiArea):
         super().__init__(parent)
         self._font = QtGui.QFont('JetBrains Mono', 10)
         # Start layout
-        self.startSubWindow = self.addSubWindow(MDISubWindow(self))
-        self.startSubWindow.show()
-        self.startSubWindow.helpCall.connect(self.helpCall.emit)
+        start_window = self.addSubWindow(MDISubWindow(self))
+        start_window.show()
+        start_window.helpCall.connect(self.helpCall.emit)
         self.setViewMode(QtWidgets.QMdiArea.ViewMode.TabbedView)
         self.setFocusPolicy(QtCore.Qt.FocusPolicy.StrongFocus)
         self.setTabsMovable(True)
         self.setTabsClosable(True)
         self.main_win = parent
         #Текущее окно при создании
-        self.current = self.startSubWindow
         self._current_subwindow = None
         self._ignore_activation = False
         #Иконки
@@ -401,7 +406,7 @@ class MDIArea(QtWidgets.QMdiArea):
         self.act_icon = QtGui.QIcon()
         self.non_act_icon.addPixmap(pixmapLoader('py_non_active.png'))
         self.act_icon.addPixmap(pixmapLoader('py_active.png'))
-        self.current.setWindowIcon(self.act_icon)
+        start_window.setWindowIcon(self.act_icon)
         # Для actions табов
         self.create_icon = QtGui.QIcon()
         self.create_icon.addPixmap(pixmapLoader(r'actions_icons\NewTab.png'))
@@ -415,9 +420,31 @@ class MDIArea(QtWidgets.QMdiArea):
         self.subWindowActivated.connect(self.opacity_recalc)
         self.subWindowActivated.connect(self.update)
         #Система сохранения - загрузки
-        self.temp = TempSystem(self)
+        self.temp = TempSystem()
+        self._autosave_timer = QtCore.QTimer(self)
+        self._autosave_timer.setSingleShot(True)
+        self._autosave_timer.setInterval(300)
+        self._autosave_timer.timeout.connect(self.save_session)
+        self._watch_tab(start_window)
         self.temp.load_temp_file(self)
+        QtWidgets.QApplication.instance().aboutToQuit.connect(self.save_session)
         self.adjustSize()
+
+    def _watch_tab(self, subwindow):
+        editor = subwindow.widget().editor
+        editor.textChanged.connect(self.schedule_autosave)
+        editor.cursorPositionChanged.connect(self.schedule_autosave)
+        editor.line_number_area.metadataChanged.connect(self.schedule_autosave)
+        subwindow.windowTitleChanged.connect(self.schedule_autosave)
+
+    @QtCore.Slot()
+    def schedule_autosave(self):
+        self._autosave_timer.start()
+
+    @QtCore.Slot()
+    def save_session(self):
+        self._autosave_timer.stop()
+        self.temp.save_temp_file(self)
 
     # Пересчет прозрачности от слайдера при активации подокна(+создание нового)
     @QtCore.Slot(QtWidgets.QMdiSubWindow)
@@ -425,7 +452,8 @@ class MDIArea(QtWidgets.QMdiArea):
         if subwindow:
             editor = subwindow.widget().editor
             log = subwindow.widget().logout
-            slider = self.parent().findChild(QtWidgets.QSlider, 'op_slider')
+            parent = self.parent()
+            slider = parent.findChild(QtWidgets.QSlider, 'op_slider') if parent else None
             if slider:
                 editor.alpha = slider.value()
                 log.alpha = slider.value()
@@ -462,7 +490,7 @@ class MDIArea(QtWidgets.QMdiArea):
         cursor = QtGui.QTextCursor(editor.textCursor())
         editor.setTextCursor(cursor)
 
-        self.temp.save_temp_file(self)
+        self.schedule_autosave()
 
     # Обновление таб-бара
     def refresh_tabbar(self):
@@ -517,6 +545,8 @@ class MDIArea(QtWidgets.QMdiArea):
         self.addSubWindow(new_win)
         new_win.showMaximized()
         self.setActiveSubWindow(new_win)
+        self._watch_tab(new_win)
+        self.schedule_autosave()
 
     # Переименовать таб
     def rename_tab(self):
@@ -566,25 +596,41 @@ class MDIArea(QtWidgets.QMdiArea):
             active_win.showMaximized()
 
     # Восстановление по Temp файлу (внутри модуля temp)
-    def restore_window(self, index, text, cursor_pos, win_name):
-        # Проверка наличия окна
-        subwindows = self.subWindowList()
-        # Гарантия наличия окна с нужным индексом
-        while len(subwindows) <= index:
-            self.new_tab()
-            subwindows = self.subWindowList()
+    def restore_tabs(self, tabs):
+        # Prepare fresh editors before changing the MDI area. Activation triggers autosave.
+        restored = []
+        for tab in tabs:
+            subwindow = MDISubWindow()
+            subwindow.helpCall.connect(self.helpCall.emit)
+            subwindow.setWindowTitle(tab['name'])
+            subwindow.setWindowIcon(self.non_act_icon)
+            editor = subwindow.widget().editor
+            editor.setPlainText(tab['text'])
+            cursor = editor.textCursor()
+            cursor.setPosition(tab['cursor'])
+            editor.setTextCursor(cursor)
+            gutter = editor.line_number_area
+            gutter.calculate_books(tab['bookmarks'])
+            gutter.calculate_folding(tab['folds'])
+            restored.append(subwindow)
 
-        # Перезапись вновь созданного окна
-        subwindow = subwindows[index]
-        subwindow.setWindowTitle(win_name)
-        editor = subwindow.widget().editor
-        editor.clear()
-        editor.setPlainText(text)
-        editor.setFocus()
-        # Восстановление позиции курсора
-        cursor = editor.textCursor()
-        cursor.setPosition(min(cursor_pos, len(text)))
-        editor.setTextCursor(cursor)
+        with QtCore.QSignalBlocker(self):
+            for subwindow in self.subWindowList():
+                self.removeSubWindow(subwindow)
+                subwindow.hide()
+                subwindow.deleteLater()
+            for subwindow in restored:
+                self.addSubWindow(subwindow)
+                subwindow.showMaximized()
+            active = restored[0]
+            active.setWindowIcon(self.act_icon)
+            self.setActiveSubWindow(active)
+
+        self._current_subwindow = active
+        self.opacity_recalc(active)
+        active.widget().editor.setFocus()
+        for subwindow in restored:
+            self._watch_tab(subwindow)
 
 
 #Вкладываемые главные окна
@@ -892,6 +938,8 @@ class MDISubWindow(QtWidgets.QMdiSubWindow):
             e.ignore()
         else:
             e.accept()
+            if mdi_area:
+                mdi_area.schedule_autosave()
 
 
 #Главное окно редактора !!!КАК КОМПЛЕКТУЕМЫЙ ВИДЖЕТ!!!
